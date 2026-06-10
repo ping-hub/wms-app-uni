@@ -1,0 +1,8 @@
+{
+  "name": "wms-app-uni",
+  "version": "1.0.0",
+  "description": "WMS 仓库管理系统移动端",
+  "dependencies": {
+    "pinia": "^2.1.7"
+  }
+}
