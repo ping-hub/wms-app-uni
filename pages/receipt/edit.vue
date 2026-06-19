@@ -6,7 +6,7 @@
         <view class="card-title">基本信息</view>
         <view class="form-item">
           <text class="form-label required">入库类型</text>
-          <picker :range="receiptTypeList" range-key="dictLabel" @change="onReceiptTypeChange" :value="receiptTypeIndex">
+          <picker :disabled="isViewMode" :range="receiptTypeList" range-key="dictLabel" @change="onReceiptTypeChange" :value="receiptTypeIndex">
             <view class="picker-value" :class="{ placeholder: !form.receiptOrderType }">
               {{ receiptTypeLabel || '请选择入库类型' }}
             </view>
@@ -14,7 +14,7 @@
         </view>
         <view class="form-item">
           <text class="form-label required">仓库</text>
-          <picker :range="warehousePickerList" range-key="warehouseName" @change="onWarehouseChange" :value="warehouseIndex">
+          <picker :disabled="isViewMode" :range="warehousePickerList" range-key="warehouseName" @change="onWarehouseChange" :value="warehouseIndex">
             <view class="picker-value" :class="{ placeholder: !form.warehouseId }">
               {{ currentWarehouseName || '请选择仓库' }}
             </view>
@@ -22,7 +22,7 @@
         </view>
         <view class="form-item">
           <text class="form-label required">库区</text>
-          <picker :range="areaPickerList" range-key="areaName" @change="onAreaChange" :value="areaIndex" :disabled="!form.warehouseId">
+          <picker :range="areaPickerList" range-key="areaName" @change="onAreaChange" :value="areaIndex" :disabled="isViewMode || !form.warehouseId">
             <view class="picker-value" :class="{ placeholder: !form.areaId }">
               {{ currentAreaName || '请选择库区' }}
             </view>
@@ -30,27 +30,23 @@
         </view>
         <view class="form-item">
           <text class="form-label">调拨根据</text>
-          <input class="form-input" v-model="form.basisNo" placeholder="请输入调拨根据"  placeholder-class="input-placeholder" />
+          <input :disabled="isViewMode" class="form-input" v-model="form.basisNo" placeholder="请输入调拨根据"  placeholder-class="input-placeholder" />
         </view>
         <view class="form-item">
           <text class="form-label">调拨方式</text>
-          <picker :range="dispatchModeList" range-key="dictLabel" @change="onDispatchModeChange" :value="dispatchModeIndex">
-            <view class="picker-value" :class="{ placeholder: !form.dispatchMode }">
-              {{ dispatchModeLabel || '请选择调拨方式' }}
-            </view>
-          </picker>
+          <input :disabled="isViewMode" class="form-input" v-model="form.dispatchMode" placeholder="请输入调拨方式" placeholder-class="input-placeholder" />
         </view>
         <view class="form-item">
           <text class="form-label">通知机关</text>
-          <input class="form-input" v-model="form.noticeOrg" placeholder="请输入通知机关"  placeholder-class="input-placeholder" />
+          <input :disabled="isViewMode" class="form-input" v-model="form.noticeOrg" placeholder="请输入通知机关"  placeholder-class="input-placeholder" />
         </view>
         <view class="form-item">
           <text class="form-label">收物单位</text>
-          <input class="form-input" v-model="form.receiveUnit" placeholder="请输入收物单位"  placeholder-class="input-placeholder" />
+          <input :disabled="isViewMode" class="form-input" v-model="form.receiveUnit" placeholder="请输入收物单位"  placeholder-class="input-placeholder" />
         </view>
         <view class="form-item">
           <text class="form-label">采购日期</text>
-          <picker mode="date" @change="onPurchaseDateChange" :value="form.purchaseDate">
+          <picker :disabled="isViewMode" mode="date" @change="onPurchaseDateChange" :value="form.purchaseDate">
             <view class="picker-value" :class="{ placeholder: !form.purchaseDate }">
               {{ form.purchaseDate || '请选择采购日期' }}
             </view>
@@ -58,7 +54,7 @@
         </view>
         <view class="form-item">
           <text class="form-label">入库日期</text>
-          <picker mode="date" @change="onReceiptDateChange" :value="form.receiptDate">
+          <picker :disabled="isViewMode" mode="date" @change="onReceiptDateChange" :value="form.receiptDate">
             <view class="picker-value" :class="{ placeholder: !form.receiptDate }">
               {{ form.receiptDate || '请选择入库日期' }}
             </view>
@@ -66,7 +62,7 @@
         </view>
         <view class="form-item">
           <text class="form-label">备注</text>
-          <textarea class="form-textarea" v-model="form.remark" placeholder="请输入备注" :maxlength="100"  placeholder-class="input-placeholder" />
+          <textarea :disabled="isViewMode" class="form-textarea" v-model="form.remark" placeholder="请输入备注" :maxlength="100"  placeholder-class="input-placeholder" />
         </view>
       </view>
 
@@ -118,7 +114,7 @@
           <view class="detail-location" v-if="!isViewMode">
             <view class="location-row">
               <text class="location-label">货架</text>
-              <picker :range="getRackOptions(detail)" range-key="rackName" @change="(e) => onRackChange(detail, e)">
+              <picker :disabled="isViewMode" :range="getRackOptions(detail)" range-key="rackName" @change="(e) => onRackChange(detail, e)">
                 <view class="picker-value picker-small" :class="{ placeholder: !detail.rackId }">
                   {{ getRackName(detail) || '选择货架' }}
                 </view>
@@ -126,7 +122,7 @@
             </view>
             <view class="location-row">
               <text class="location-label">货位</text>
-              <picker :range="getLocationOptions(detail)" range-key="locationName" @change="(e) => onLocationChange(detail, e)" :disabled="!detail.rackId">
+              <picker :range="getLocationOptions(detail)" range-key="locationName" @change="(e) => onLocationChange(detail, e)" :disabled="isViewMode || !detail.rackId">
                 <view class="picker-value picker-small" :class="{ placeholder: !detail.locationId }">
                   {{ getLocationName(detail) || '选择货位' }}
                 </view>
@@ -134,7 +130,7 @@
             </view>
             <view class="location-row">
               <text class="location-label">箱码</text>
-              <input class="location-input" v-model="detail.boxCode" placeholder="选填" />
+              <input :disabled="isViewMode" class="location-input" v-model="detail.boxCode" placeholder="选填" />
             </view>
           </view>
           <view class="detail-location" v-else>
@@ -143,23 +139,7 @@
               <text class="location-value">{{ getFullLocation(detail) }}</text>
             </view>
           </view>
-          <!-- 单价 -->
-          <view class="detail-price" v-if="!isViewMode">
-            <view class="location-row">
-              <text class="location-label">单价</text>
-              <input class="location-input" type="digit" v-model="detail.unitPrice" placeholder="0.00" @blur="calcLineAmount(detail)" />
-            </view>
-            <view class="location-row" v-if="detail.lineAmount">
-              <text class="location-label">总价</text>
-              <text class="location-value">¥{{ Number(detail.lineAmount || 0).toFixed(2) }}</text>
-            </view>
-          </view>
-          <view class="detail-price" v-else>
-            <view class="location-row" v-if="detail.unitPrice">
-              <text class="location-label">单价</text>
-              <text class="location-value">¥{{ Number(detail.unitPrice).toFixed(2) }}</text>
-            </view>
-          </view>
+
         </view>
       </view>
 
@@ -171,7 +151,7 @@
     <view class="bottom-bar" v-if="!isViewMode">
       <view class="summary-info">
         <text class="summary-text">合计：{{ form.details.length }}件</text>
-        <text class="summary-amount">¥{{ Number(form.payableAmount || 0).toFixed(2) }}</text>
+        
       </view>
       <view class="bottom-actions">
         <button class="btn-save" @click="handleSave">暂存</button>
@@ -190,7 +170,7 @@
           <text class="picker-close" @click="showItemPicker = false">✕</text>
         </view>
         <view class="picker-search">
-          <input class="search-input" v-model="instanceQuery.instanceCode" placeholder="搜索实例编码" confirm-type="search" @confirm="searchInstances" />
+          <input :disabled="isViewMode" class="search-input" v-model="instanceQuery.instanceCode" placeholder="搜索实例编码" confirm-type="search" @confirm="searchInstances" />
         </view>
         <scroll-view class="picker-list" scroll-y @scrolltolower="loadMoreInstances">
           <view
@@ -327,8 +307,6 @@ const form = ref({
 
 // 字典数据
 const receiptTypeList = computed(() => wmsStore.dictMap['wms_receipt_type'] || [])
-const dispatchModeList = computed(() => wmsStore.dictMap['wms_dispatch_mode'] || [])
-
 const receiptTypeIndex = computed(() => {
   const idx = receiptTypeList.value.findIndex(d => d.dictValue === form.value.receiptOrderType)
   return idx >= 0 ? idx : 0
@@ -337,14 +315,7 @@ const receiptTypeLabel = computed(() => {
   const item = receiptTypeList.value.find(d => d.dictValue === form.value.receiptOrderType)
   return item ? item.dictLabel : ''
 })
-const dispatchModeIndex = computed(() => {
-  const idx = dispatchModeList.value.findIndex(d => d.dictValue === form.value.dispatchMode)
-  return idx >= 0 ? idx : 0
-})
-const dispatchModeLabel = computed(() => {
-  const item = dispatchModeList.value.find(d => d.dictValue === form.value.dispatchMode)
-  return item ? item.dictLabel : ''
-})
+
 
 // 仓库/库区选择
 const warehousePickerList = computed(() => wmsStore.warehouseList)
@@ -449,11 +420,6 @@ const onAreaChange = (e) => {
     d.locationId = undefined
   })
   loadRacks(form.value.areaId)
-}
-
-const onDispatchModeChange = (e) => {
-  const idx = e.detail.value
-  form.value.dispatchMode = dispatchModeList.value[idx]?.dictValue
 }
 
 const onPurchaseDateChange = (e) => {
@@ -668,9 +634,23 @@ const doContinuousScan = async () => {
       scanType: ['qrCode', 'barCode'],
       autoDecodeCharSet: true
     })
-    const scanResult = res?.result ? res : (Array.isArray(res) ? res[1] : null)
-    const content = scanResult?.result
+    // 多格式兼容提取扫码内容
+    let content = ''
+    if (typeof res === 'string') {
+      content = res
+    } else if (res?.result) {
+      content = res.result
+    } else if (Array.isArray(res)) {
+      const data = res[1] || res[0]
+      content = data?.result || ''
+      if (!content && typeof data === 'string') content = data
+    }
     if (content) {
+      // URL 解码
+      try {
+        const decoded = decodeURIComponent(content)
+        if (decoded !== content) content = decoded
+      } catch (e) {}
       const parsed = parseScanContent(content)
       const instanceCode = parsed.parsed?.instanceCode
       if (instanceCode) {
@@ -1038,7 +1018,6 @@ onMounted(async () => {
   // 加载字典
   await Promise.all([
     wmsStore.getDict('wms_receipt_type'),
-    wmsStore.getDict('wms_dispatch_mode'),
     wmsStore.loadWarehouses(),
     wmsStore.loadAreas()
   ])

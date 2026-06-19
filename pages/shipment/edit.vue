@@ -6,7 +6,7 @@
         <view class="card-title">基本信息</view>
         <view class="form-item">
           <text class="form-label required">出库类型</text>
-          <picker :range="shipmentTypeList" range-key="dictLabel" @change="onShipmentTypeChange" :value="shipmentTypeIndex">
+          <picker :disabled="isViewMode" :range="shipmentTypeList" range-key="dictLabel" @change="onShipmentTypeChange" :value="shipmentTypeIndex">
             <view class="picker-value" :class="{ placeholder: !form.shipmentOrderType }">
               {{ shipmentTypeLabel || '请选择出库类型' }}
             </view>
@@ -14,7 +14,7 @@
         </view>
         <view class="form-item">
           <text class="form-label required">仓库</text>
-          <picker :range="warehousePickerList" range-key="warehouseName" @change="onWarehouseChange" :value="warehouseIndex">
+          <picker :disabled="isViewMode" :range="warehousePickerList" range-key="warehouseName" @change="onWarehouseChange" :value="warehouseIndex">
             <view class="picker-value" :class="{ placeholder: !form.warehouseId }">
               {{ currentWarehouseName || '请选择仓库' }}
             </view>
@@ -22,7 +22,7 @@
         </view>
         <view class="form-item">
           <text class="form-label required">库区</text>
-          <picker :range="areaPickerList" range-key="areaName" @change="onAreaChange" :value="areaIndex" :disabled="!form.warehouseId">
+          <picker :range="areaPickerList" range-key="areaName" @change="onAreaChange" :value="areaIndex" :disabled="isViewMode || !form.warehouseId">
             <view class="picker-value" :class="{ placeholder: !form.areaId }">
               {{ currentAreaName || '请选择库区' }}
             </view>
@@ -30,7 +30,7 @@
         </view>
         <view class="form-item">
           <text class="form-label">出库日期</text>
-          <picker mode="date" @change="onShipmentDateChange" :value="form.shipmentDate">
+          <picker :disabled="isViewMode" mode="date" @change="onShipmentDateChange" :value="form.shipmentDate">
             <view class="picker-value" :class="{ placeholder: !form.shipmentDate }">
               {{ form.shipmentDate || '请选择出库日期' }}
             </view>
@@ -38,7 +38,7 @@
         </view>
         <view class="form-item">
           <text class="form-label">采购日期</text>
-          <picker mode="date" @change="onPurchaseDateChange" :value="form.purchaseDate">
+          <picker :disabled="isViewMode" mode="date" @change="onPurchaseDateChange" :value="form.purchaseDate">
             <view class="picker-value" :class="{ placeholder: !form.purchaseDate }">
               {{ form.purchaseDate || '请选择采购日期' }}
             </view>
@@ -46,31 +46,23 @@
         </view>
         <view class="form-item">
           <text class="form-label">调拨根据</text>
-          <input class="form-input" v-model="form.basisNo" placeholder="请输入调拨根据"  placeholder-class="input-placeholder" />
+          <input :disabled="isViewMode" class="form-input" v-model="form.basisNo" placeholder="请输入调拨根据"  placeholder-class="input-placeholder" />
         </view>
         <view class="form-item">
           <text class="form-label">调拨方式</text>
-          <picker :range="dispatchModeList" range-key="dictLabel" @change="onDispatchModeChange" :value="dispatchModeIndex">
-            <view class="picker-value" :class="{ placeholder: !form.dispatchMode }">
-              {{ dispatchModeLabel || '请选择调拨方式' }}
-            </view>
-          </picker>
+          <input :disabled="isViewMode" class="form-input" v-model="form.dispatchMode" placeholder="请输入调拨方式" placeholder-class="input-placeholder" />
         </view>
         <view class="form-item">
           <text class="form-label">通知机关</text>
-          <input class="form-input" v-model="form.noticeOrg" placeholder="请输入通知机关"  placeholder-class="input-placeholder" />
+          <input :disabled="isViewMode" class="form-input" v-model="form.noticeOrg" placeholder="请输入通知机关"  placeholder-class="input-placeholder" />
         </view>
         <view class="form-item">
           <text class="form-label">收物单位</text>
-          <input class="form-input" v-model="form.receiveUnit" placeholder="请输入收物单位"  placeholder-class="input-placeholder" />
-        </view>
-        <view class="form-item">
-          <text class="form-label">应收金额</text>
-          <input class="form-input" type="digit" v-model="form.receivableAmount" placeholder="0.00"  placeholder-class="input-placeholder" />
+          <input :disabled="isViewMode" class="form-input" v-model="form.receiveUnit" placeholder="请输入收物单位"  placeholder-class="input-placeholder" />
         </view>
         <view class="form-item">
           <text class="form-label">备注</text>
-          <textarea class="form-textarea" v-model="form.remark" placeholder="请输入备注" :maxlength="100"  placeholder-class="input-placeholder" />
+          <textarea :disabled="isViewMode" class="form-textarea" v-model="form.remark" placeholder="请输入备注" :maxlength="100"  placeholder-class="input-placeholder" />
         </view>
       </view>
 
@@ -79,11 +71,11 @@
         <view class="card-title flex-between">
           <text>出库明细 ({{ form.details.length }})</text>
         </view>
-        <view class="detail-tip">
+        <view class="detail-tip" v-if="canEdit">
           <text class="text-secondary">选择在库器材实例执行出库，支持扫码或手动选择</text>
         </view>
 
-        <view class="detail-actions" v-if="!isViewMode">
+        <view class="detail-actions" v-if="canEdit">
           <view class="action-card scan-action" @click="handleScan">
             <text class="action-icon">📷</text>
             <text class="action-text">扫码添加</text>
@@ -98,8 +90,11 @@
           </view>
         </view>
 
-        <view v-if="!form.details.length" class="empty-detail">
+        <view v-if="!form.details.length && canEdit" class="empty-detail">
           <text class="text-secondary">暂无出库明细，请扫码或手动添加</text>
+        </view>
+        <view v-if="!form.details.length && !canEdit" class="empty-detail">
+          <text class="text-secondary">暂无出库明细</text>
         </view>
         <view
           v-for="(detail, index) in form.details"
@@ -108,7 +103,7 @@
         >
           <view class="detail-header flex-between">
             <text class="detail-instance-code">{{ detail.instanceCode || '-' }}</text>
-            <text v-if="!isViewMode" class="detail-remove" @click="removeDetail(index)">删除</text>
+            <text v-if="canEdit" class="detail-remove" @click="removeDetail(index)">删除</text>
           </view>
           <view class="detail-info">
             <text class="detail-name">{{ detail.itemName || '-' }}</text>
@@ -128,12 +123,30 @@
     </scroll-view>
 
     <!-- 底部操作栏 -->
-    <view class="bottom-bar" v-if="!isViewMode">
+    <view class="bottom-bar" v-if="canEdit">
       <view class="summary-info">
         <text class="summary-text">合计：{{ form.details.length }}件</text>
       </view>
       <view class="bottom-actions">
         <button class="btn-save" @click="handleSave">暂存</button>
+        <button class="btn-void" v-if="form.id" @click="handleVoid">作废</button>
+        <button class="btn-submit" @click="handleSubmitApproval">提交审批</button>
+      </view>
+    </view>
+    <view class="bottom-bar" v-else-if="!isViewMode && form.shipmentOrderStatus === 1 && String(form.approverId || '') === String(userStore.userId)">
+      <view class="summary-info">
+        <text class="summary-text">待审批</text>
+      </view>
+      <view class="bottom-actions">
+        <button class="btn-reject" @click="handleReject">驳回</button>
+        <button class="btn-approve" @click="handleApprove">审批通过</button>
+      </view>
+    </view>
+    <view class="bottom-bar" v-else-if="!isViewMode && form.shipmentOrderStatus === 2 && String(form.executorId || '') === String(userStore.userId)">
+      <view class="summary-info">
+        <text class="summary-text">合计：{{ form.details.length }}件</text>
+      </view>
+      <view class="bottom-actions">
         <button class="btn-shipment" @click="handleShipment">执行出库</button>
       </view>
     </view>
@@ -149,7 +162,7 @@
           <text class="picker-close" @click="showItemPicker = false">✕</text>
         </view>
         <view class="picker-search">
-          <input class="search-input" v-model="instanceQuery.instanceCode" placeholder="搜索实例编码" confirm-type="search" @confirm="searchInstances" />
+          <input :disabled="isViewMode" class="search-input" v-model="instanceQuery.instanceCode" placeholder="搜索实例编码" confirm-type="search" @confirm="searchInstances" />
         </view>
         <scroll-view class="picker-list" scroll-y>
           <view
@@ -183,15 +196,19 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { getShipmentOrder, addShipmentOrder, updateShipmentOrder, shipment as shipmentApi } from '@/api/wms/shipmentOrder'
+import { getShipmentOrder, addShipmentOrder, updateShipmentOrder, shipment as shipmentApi, submitForApproval, approveOrder, rejectOrder, voidOrder } from '@/api/wms/shipmentOrder'
+import { getUserSelectList } from '@/api/common'
 import { listItemInstance, getItemInstanceByCode } from '@/api/wms/itemInstance'
 import { listInventoryDetailNoPage } from '@/api/wms/inventoryDetail'
 import { useWmsStore } from '@/store/wms'
-import { parseScanContent, doScanCode } from '@/utils/scan'
+import { useUserStore } from '@/store/user'
+import { parseScanContent } from '@/utils/scan'
 
 const wmsStore = useWmsStore()
+const userStore = useUserStore()
 
 const isViewMode = ref(false)
+const canEdit = computed(() => !isViewMode.value && (form.value.shipmentOrderStatus === 0 || form.value.shipmentOrderStatus === -2) && (!form.value.id || String(form.value.applicantId || '') === String(userStore.userId)))
 const orderId = ref(undefined)
 
 const form = ref({
@@ -218,9 +235,7 @@ const inventoryDetailOptions = ref([])
 
 // 字典
 const shipmentTypeList = computed(() => wmsStore.dictMap['wms_shipment_type'] || [])
-const dispatchModeList = computed(() => wmsStore.dictMap['wms_dispatch_mode'] || [])
-const dispatchModeIndex = computed(() => Math.max(0, dispatchModeList.value.findIndex(d => d.dictValue === form.value.dispatchMode)))
-const dispatchModeLabel = computed(() => dispatchModeList.value.find(d => d.dictValue === form.value.dispatchMode)?.dictLabel || '')
+
 const shipmentTypeIndex = computed(() => {
   const idx = shipmentTypeList.value.findIndex(d => d.dictValue === form.value.shipmentOrderType)
   return idx >= 0 ? idx : 0
@@ -269,9 +284,7 @@ const onShipmentDateChange = (e) => {
   form.value.shipmentDate = e.detail.value
 }
 
-const onDispatchModeChange = (e) => {
-  form.value.dispatchMode = dispatchModeList.value[e.detail.value]?.dictValue
-}
+
 
 const onPurchaseDateChange = (e) => {
   form.value.purchaseDate = e.detail.value
@@ -283,17 +296,53 @@ const handleScan = async () => {
     return uni.showToast({ title: '请先选择仓库和库区', icon: 'none' })
   }
   try {
-    const content = await doScanCode()
+    const res = await uni.scanCode({
+      scanType: ['qrCode', 'barCode'],
+      autoDecodeCharSet: true
+    })
+    // 调试：显示原始返回
+    console.log('[出库扫码] typeof res:', typeof res)
+    console.log('[出库扫码] Array.isArray:', Array.isArray(res))
+    console.log('[出库扫码] res:', JSON.stringify(res))
+
+    // 多格式兼容提取扫码内容
+    let content = ''
+    if (typeof res === 'string') {
+      content = res
+    } else if (res?.result) {
+      content = res.result
+    } else if (Array.isArray(res)) {
+      const data = res[1] || res[0]
+      content = data?.result || ''
+      if (!content && typeof data === 'string') content = data
+    }
+
+    if (!content) {
+      uni.showToast({ title: '扫码结果为空: ' + JSON.stringify(res).substring(0, 50), icon: 'none', duration: 3000 })
+      return
+    }
+
+    // URL 解码
+    try {
+      const decoded = decodeURIComponent(content)
+      if (decoded !== content) content = decoded
+    } catch (e) {}
+
+    console.log('[出库扫码] 最终内容:', content)
+
     const parsed = parseScanContent(content)
+    console.log('[出库扫码] 解析结果:', JSON.stringify(parsed.parsed))
+
     if (!parsed.parsed?.instanceCode) {
-      uni.showToast({ title: '未识别到实例编码', icon: 'none' })
+      uni.showToast({ title: '未识别到实例编码', icon: 'none', duration: 2500 })
       return
     }
     await addInstanceByCode(parsed.parsed.instanceCode)
   } catch (e) {
+    console.error('[出库扫码] 异常:', e)
     const msg = e?.errMsg || e?.message || String(e) || ''
     if (msg && !msg.includes('cancel')) {
-      uni.showToast({ title: '扫码失败', icon: 'none' })
+      uni.showToast({ title: '扫码失败: ' + msg.substring(0, 40), icon: 'none', duration: 2500 })
     }
   }
 }
@@ -315,9 +364,23 @@ const doContinuousScan = async () => {
       scanType: ['qrCode', 'barCode'],
       autoDecodeCharSet: true
     })
-    const scanResult = res?.result ? res : (Array.isArray(res) ? res[1] : null)
-    const content = scanResult?.result
+    // 多格式兼容提取扫码内容
+    let content = ''
+    if (typeof res === 'string') {
+      content = res
+    } else if (res?.result) {
+      content = res.result
+    } else if (Array.isArray(res)) {
+      const data = res[1] || res[0]
+      content = data?.result || ''
+      if (!content && typeof data === 'string') content = data
+    }
     if (content) {
+      // URL 解码
+      try {
+        const decoded = decodeURIComponent(content)
+        if (decoded !== content) content = decoded
+      } catch (e) {}
       const parsed = parseScanContent(content)
       const instanceCode = parsed.parsed?.instanceCode
       if (instanceCode) {
@@ -527,6 +590,76 @@ const removeDetail = (index) => {
 
 const recalculate = () => {
   form.value.totalQuantity = form.value.details.length
+  // 应收金额 = 明细数量合计（每个实例数量=1，暂无单价逻辑，按件数计）
+  form.value.receivableAmount = form.value.details.length
+}
+
+// ===== 审批操作 =====
+const userList = ref([])
+const loadUserList = async () => {
+  try { const res = await getUserSelectList(); userList.value = res.data || [] } catch (e) {}
+}
+
+const handleSubmitApproval = async () => {
+  if (!validate()) return
+  if (!form.value.details.length) return uni.showToast({ title: '请添加出库明细', icon: 'none' })
+  // 先暂存
+  const params = buildSubmitParams(0)
+  let savedId = form.value.id
+  try {
+    if (params.id) { await updateShipmentOrder(params) }
+    else { const res = await addShipmentOrder(params); savedId = res.data }
+  } catch (e) { return }
+  // 选择审批人
+  const names = userList.value.map(u => u.nickName)
+  const { cancel, value } = await uni.showActionSheet({ itemList: names })
+  if (cancel) { uni.showToast({ title: '已暂存', icon: 'success' }); setTimeout(() => goBack(), 1000); return }
+  const selected = userList.value[value]
+  try {
+    await submitForApproval(savedId, selected.userId, selected.nickName)
+    uni.showToast({ title: '已提交审批', icon: 'success' })
+    setTimeout(() => goBack(), 1000)
+  } catch (e) {}
+}
+
+const handleApprove = async () => {
+  // 选择操作人（executor）
+  if (!userList.value.length) await loadUserList()
+  const names = userList.value.map(u => u.nickName)
+  const { cancel, value } = await uni.showActionSheet({ itemList: names })
+  if (cancel) return
+  const executor = userList.value[value]
+  if (!executor) return uni.showToast({ title: '请选择操作人', icon: 'none' })
+  // 不能指定自己为操作人（可选校验）
+  if (String(executor.userId) === String(userStore.userId)) {
+    const { confirm: selfConfirm } = await uni.showModal({ title: '提示', content: '操作人与审批人为同一人，是否继续？' })
+    if (!selfConfirm) return
+  }
+  try {
+    await approveOrder(form.value.id, '', executor.userId, executor.nickName)
+    uni.showToast({ title: '审批通过', icon: 'success' })
+    setTimeout(() => goBack(), 1000)
+  } catch (e) {}
+}
+
+const handleReject = async () => {
+  const { confirm, content: remark } = await uni.showModal({ title: '驳回', content: '', placeholder: '请输入驳回原因（可选）', editable: true })
+  if (!confirm) return
+  try {
+    await rejectOrder(form.value.id, remark || '')
+    uni.showToast({ title: '已驳回', icon: 'success' })
+    setTimeout(() => goBack(), 1000)
+  } catch (e) {}
+}
+
+const handleVoid = async () => {
+  const { confirm } = await uni.showModal({ title: '确认', content: '确认作废出库单吗？' })
+  if (!confirm) return
+  try {
+    await voidOrder(form.value.id)
+    uni.showToast({ title: '已作废', icon: 'success' })
+    setTimeout(() => goBack(), 1000)
+  } catch (e) {}
 }
 
 // ===== 保存/提交 =====
@@ -588,11 +721,12 @@ const validate = () => {
 const handleSave = async () => {
   if (!validate()) return
   try {
-    const params = buildSubmitParams(0)
+    const params = buildSubmitParams(form.value.shipmentOrderStatus)
     if (params.id) {
       await updateShipmentOrder(params)
     } else {
-      await addShipmentOrder(params)
+      const res = await addShipmentOrder(params)
+      form.value.id = res.data
     }
     uni.showToast({ title: '暂存成功', icon: 'success' })
     setTimeout(() => goBack(), 1000)
@@ -600,19 +734,15 @@ const handleSave = async () => {
 }
 
 const handleShipment = async () => {
-  if (!validate()) return
-  if (!form.value.details.length) {
-    return uni.showToast({ title: '请添加出库明细', icon: 'none' })
-  }
   const { confirm } = await uni.showModal({
     title: '确认出库',
-    content: `确认执行出库吗？共${form.value.details.length}项`
+    content: `确认执行出库吗？共${form.value.details.length}项，此操作不可撤销。`
   })
   if (!confirm) return
-
   try {
-    const params = buildSubmitParams(form.value.shipmentOrderStatus)
-    await shipmentApi(params)
+    const res = await getShipmentOrder(form.value.id)
+    const data = { ...res.data }
+    await shipmentApi(data)
     uni.showToast({ title: '出库成功', icon: 'success' })
     setTimeout(() => goBack(), 1000)
   } catch (e) {}
@@ -646,9 +776,9 @@ onMounted(async () => {
   await Promise.all([
     wmsStore.getDict('wms_shipment_type'),
     wmsStore.getDict('wms_shipment_status'),
-    wmsStore.getDict('wms_dispatch_mode'),
     wmsStore.loadWarehouses(),
-    wmsStore.loadAreas()
+    wmsStore.loadAreas(),
+    loadUserList()
   ])
 
   const pages = getCurrentPages()
@@ -858,12 +988,60 @@ onMounted(async () => {
 
 .btn-save {
   height: 80rpx;
-  padding: 0 40rpx;
+  padding: 0 32rpx;
   background: #f5f6fa;
-  color: #e43d33;
+  color: #666;
   border-radius: 12rpx;
   font-size: 28rpx;
-  border: 2rpx solid #e43d33;
+  border: 2rpx solid #ddd;
+  line-height: 80rpx;
+  &::after { border: none; }
+}
+
+.btn-submit {
+  height: 80rpx;
+  padding: 0 32rpx;
+  background: #2979ff;
+  color: #ffffff;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+  border: none;
+  line-height: 80rpx;
+  &::after { border: none; }
+}
+
+.btn-void {
+  height: 80rpx;
+  padding: 0 32rpx;
+  background: #fff;
+  color: #f56c6c;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+  border: 2rpx solid #f56c6c;
+  line-height: 80rpx;
+  &::after { border: none; }
+}
+
+.btn-approve {
+  height: 80rpx;
+  padding: 0 32rpx;
+  background: #67c23a;
+  color: #ffffff;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+  border: none;
+  line-height: 80rpx;
+  &::after { border: none; }
+}
+
+.btn-reject {
+  height: 80rpx;
+  padding: 0 32rpx;
+  background: #fff;
+  color: #f56c6c;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+  border: 2rpx solid #f56c6c;
   line-height: 80rpx;
   &::after { border: none; }
 }
@@ -986,5 +1164,6 @@ onMounted(async () => {
   line-height: 80rpx;
   &::after { border: none; }
 }
+.auto-calc { background: #f0f9eb; color: #67c23a; font-weight: 600; }
 .input-placeholder { color: #c0c4cc; }
 </style>

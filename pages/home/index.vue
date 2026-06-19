@@ -34,9 +34,13 @@
             <text class="quick-icon">📋</text>
             <text class="quick-label">盘点</text>
           </view>
-          <view class="quick-item" @click="goTo('/pages/instance/list')">
+          <view class="quick-item" @click="goTo('/pages/scan/index')">
             <text class="quick-icon">🔍</text>
-            <text class="quick-label">台账</text>
+            <text class="quick-label">查找</text>
+          </view>
+          <view class="quick-item" @click="goTo('/pages/instance/list')">
+            <text class="quick-icon">📦</text>
+            <text class="quick-label">库存</text>
           </view>
         </view>
       </view>
@@ -91,11 +95,21 @@
         <view class="func-grid">
           <view class="func-card" @click="goTo('/pages/instance/list')">
             <view class="func-card-icon func-icon-instance">
+              <text class="icon-text">📦</text>
+            </view>
+            <view class="func-card-info">
+              <text class="func-card-label">库存明细</text>
+              <text class="func-card-desc">器材实例查询</text>
+            </view>
+            <text class="func-card-arrow">›</text>
+          </view>
+          <view class="func-card" @click="goTo('/pages/scan/index')">
+            <view class="func-card-icon func-icon-scan">
               <text class="icon-text">🔍</text>
             </view>
             <view class="func-card-info">
-              <text class="func-card-label">器材台账</text>
-              <text class="func-card-desc">器材明细查询</text>
+              <text class="func-card-label">扫码查找</text>
+              <text class="func-card-desc">扫码查看器材信息和位置</text>
             </view>
             <text class="func-card-arrow">›</text>
           </view>

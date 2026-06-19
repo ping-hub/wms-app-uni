@@ -11,10 +11,12 @@
       </view>
     </view>
 
+
+
     <scroll-view class="order-list" scroll-y refresher-enabled :refresher-triggered="refreshing" @refresherrefresh="onRefresh" @scrolltolower="onLoadMore">
       <view v-if="!list.length && !loading" class="empty-tip"><text class="text-secondary">暂无盘点单</text></view>
 
-      <view v-for="item in list" :key="item.id" class="order-card card" @click="goDetail(item)">
+      <view v-for="item in list" :key="item.id" class="order-card card" @click="goView(item)">
         <view class="order-header flex-between">
           <text class="order-no">{{ item.checkOrderNo || '待生成' }}</text>
           <text :class="['tag', getStatusTagClass(item.checkOrderStatus)]">{{ getStatusLabel(item.checkOrderStatus) }}</text>
@@ -32,15 +34,20 @@
             <text class="order-label">盘点人</text>
             <text class="order-value">{{ item.checkerName }}</text>
           </view>
+          <view class="order-row" v-if="item.reviewerName">
+            <text class="order-label">复核人</text>
+            <text class="order-value">{{ item.reviewerName }}</text>
+          </view>
         </view>
         <view class="order-footer flex-between">
           <text class="text-secondary">{{ item.createBy }} · {{ formatTime(item.createTime) }}</text>
-          <view class="order-actions" v-if="item.checkOrderStatus === 0">
-            <text class="action-btn action-edit" @click.stop="goEdit(item)">编辑</text>
+          <view class="order-actions" v-if="item.checkOrderStatus === 0 && item.checkerName === userStore.nickName">
+            <text class="action-btn action-edit" @click.stop="goEdit(item)">去盘点</text>
             <text class="action-btn action-delete" @click.stop="handleDelete(item)">删除</text>
+            <text class="action-btn action-view" @click.stop="goView(item)">查看</text>
           </view>
-          <view class="order-actions" v-else-if="item.checkOrderStatus === 1">
-            <text class="action-btn action-view">查看</text>
+          <view class="order-actions" v-else>
+            <text class="action-btn action-view" @click.stop="goView(item)">查看</text>
           </view>
         </view>
       </view>
@@ -74,9 +81,11 @@ import { ref, computed, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { listCheckOrder, delCheckOrder } from '@/api/wms/checkOrder'
 import { useWmsStore } from '@/store/wms'
+import { useUserStore } from '@/store/user'
 import { formatTime } from '@/utils/scan'
 
 const wmsStore = useWmsStore()
+const userStore = useUserStore()
 const list = ref([])
 const loading = ref(false)
 const refreshing = ref(false)
@@ -92,7 +101,6 @@ const statusTabs = [
 const currentStatus = ref('')
 const queryParams = ref({ pageNum: 1, pageSize: 10, checkOrderNo: undefined, checkOrderStatus: undefined, warehouseId: undefined })
 
-
 const getStatusLabel = (status) => wmsStore.getDictLabel('wms_check_status', status)
 const getStatusTagClass = (status) => { const s = String(status); if (s === '1') return 'tag-success'; if (s === '-1') return 'tag-danger'; return 'tag-warning' }
 
@@ -101,6 +109,7 @@ const getScopeLabel = (item) => {
   let name = ''
   if (item.checkScopeType === 'warehouse') name = wmsStore.warehouseMap.get(item.warehouseId)?.warehouseName || ''
   else if (item.checkScopeType === 'area') name = wmsStore.areaMap.get(item.areaId)?.areaName || ''
+  else if (item.checkScopeType === 'rack') name = wmsStore.rackMap.get(item.rackId)?.rackName || ''
   return type + (name ? ' - ' + name : '')
 }
 
@@ -129,20 +138,25 @@ const onWarehouseChange = (e) => { queryParams.value.warehouseId = warehousePick
 const resetFilter = () => { queryParams.value.warehouseId = undefined }
 const applyFilter = () => { showFilter.value = false; getList(true) }
 
-const goAdd = () => uni.navigateTo({ url: '/pages/check/edit' })
-const goEdit = (row) => uni.navigateTo({ url: '/pages/check/edit?id=' + row.id })
-const goDetail = (row) => {
-  if (row.checkOrderStatus === 0) goEdit(row)
-  else uni.navigateTo({ url: '/pages/check/edit?id=' + row.id + '&mode=view' })
-}
-
 const handleDelete = async (row) => {
   const { confirm } = await uni.showModal({ title: '提示', content: `确认删除盘点单【${row.checkOrderNo}】吗？` })
-  if (confirm) { try { await delCheckOrder(row.id); uni.showToast({ title: '删除成功', icon: 'success' }); getList(true) } catch (e) {} }
+  if (confirm) {
+    try {
+      await delCheckOrder(row.id)
+      uni.showToast({ title: '删除成功', icon: 'success' })
+      getList(true)
+    } catch (e) {}
+  }
 }
 
+const goAdd = () => uni.navigateTo({ url: '/pages/check/edit' })
+const goEdit = (row) => uni.navigateTo({ url: '/pages/check/edit?id=' + row.id })
+const goView = (row) => uni.navigateTo({ url: '/pages/check/edit?id=' + row.id + '&mode=view' })
+
+
+
 onMounted(() => {
-wmsStore.getDict('wms_check_status')
+  wmsStore.getDict('wms_check_status')
   wmsStore.getDict('wms_check_scope_type')
   wmsStore.loadWarehouses()
   wmsStore.loadAreas()

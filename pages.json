@@ -1,15 +1,72 @@
 {
   "pages": [
-    { "path": "pages/home/index", "style": { "navigationBarTitleText": "WMS-App" } },
-    { "path": "pages/login/index", "style": { "navigationBarTitleText": "登录", "navigationStyle": "custom" } },
-    { "path": "pages/receipt/list", "style": { "navigationBarTitleText": "入库单" } },
-    { "path": "pages/receipt/edit", "style": { "navigationBarTitleText": "入库单编辑" } },
-    { "path": "pages/shipment/list", "style": { "navigationBarTitleText": "出库单" } },
-    { "path": "pages/shipment/edit", "style": { "navigationBarTitleText": "出库单编辑" } },
-    { "path": "pages/check/list", "style": { "navigationBarTitleText": "盘点单" } },
-    { "path": "pages/check/edit", "style": { "navigationBarTitleText": "盘点单编辑" } },
-    { "path": "pages/instance/list", "style": { "navigationBarTitleText": "器材台账" } },
-    { "path": "pages/instance/detail", "style": { "navigationBarTitleText": "实例详情" } }
+    {
+      "path": "pages/home/index",
+      "style": {
+        "navigationBarTitleText": "WMS-App"
+      }
+    },
+    {
+      "path": "pages/login/index",
+      "style": {
+        "navigationBarTitleText": "登录",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/receipt/list",
+      "style": {
+        "navigationBarTitleText": "入库单"
+      }
+    },
+    {
+      "path": "pages/receipt/edit",
+      "style": {
+        "navigationBarTitleText": "入库单编辑"
+      }
+    },
+    {
+      "path": "pages/shipment/list",
+      "style": {
+        "navigationBarTitleText": "出库单"
+      }
+    },
+    {
+      "path": "pages/shipment/edit",
+      "style": {
+        "navigationBarTitleText": "出库单编辑"
+      }
+    },
+    {
+      "path": "pages/check/list",
+      "style": {
+        "navigationBarTitleText": "盘点单"
+      }
+    },
+    {
+      "path": "pages/check/edit",
+      "style": {
+        "navigationBarTitleText": "盘点单编辑"
+      }
+    },
+    {
+      "path": "pages/instance/list",
+      "style": {
+        "navigationBarTitleText": "库存明细"
+      }
+    },
+    {
+      "path": "pages/instance/detail",
+      "style": {
+        "navigationBarTitleText": "器材详情"
+      }
+    },
+    {
+      "path": "pages/scan/index",
+      "style": {
+        "navigationBarTitleText": "扫码查找"
+      }
+    }
   ],
   "globalStyle": {
     "navigationBarTextStyle": "black",

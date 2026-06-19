@@ -13,18 +13,6 @@
       </view>
     </view>
 
-    <view class="status-tabs">
-      <view
-        v-for="tab in statusTabs"
-        :key="tab.value"
-        class="tab-item"
-        :class="{ 'tab-active': currentStatus === tab.value }"
-        @click="switchTab(tab.value)"
-      >
-        <text class="tab-text">{{ tab.label }}</text>
-      </view>
-    </view>
-
     <scroll-view
       class="order-list"
       scroll-y
@@ -41,7 +29,7 @@
         v-for="item in list"
         :key="item.id"
         class="order-card card"
-        @click="goDetail(item)"
+        @click="goView(item)"
       >
         <view class="order-header flex-between">
           <text class="order-no">{{ item.shipmentOrderNo || '待生成' }}</text>
@@ -59,18 +47,27 @@
             <text class="order-value">{{ getWarehouseLabel(item.warehouseId, item.areaId) }}</text>
           </view>
           <view class="order-row">
-            <text class="order-label">数量/金额</text>
-            <text class="order-value">{{ Math.floor(item.totalQuantity || 0) }}件 / ¥{{ Number(item.receivableAmount || 0).toFixed(2) }}</text>
+            <text class="order-label">数量</text>
+            <text class="order-value">{{ Math.floor(item.totalQuantity || 0) }}件</text>
           </view>
         </view>
         <view class="order-footer flex-between">
           <text class="text-secondary">{{ item.createBy }} · {{ formatTime(item.createTime) }}</text>
-          <view class="order-actions" v-if="item.shipmentOrderStatus === 0">
+          <view class="order-actions" v-if="(item.shipmentOrderStatus === 0 || item.shipmentOrderStatus === -2) && isApplicant(item)">
             <text class="action-btn action-edit" @click.stop="goEdit(item)">编辑</text>
             <text class="action-btn action-delete" @click.stop="handleDelete(item)">删除</text>
+            <text class="action-btn action-view" @click.stop="goView(item)">查看</text>
           </view>
-          <view class="order-actions" v-else-if="item.shipmentOrderStatus === 1">
-            <text class="action-btn action-view">查看</text>
+          <view class="order-actions" v-else-if="item.shipmentOrderStatus === 1 && isApprover(item)">
+            <text class="action-btn action-submit" @click.stop="goEdit(item)">审批</text>
+            <text class="action-btn action-view" @click.stop="goView(item)">查看</text>
+          </view>
+          <view class="order-actions" v-else-if="item.shipmentOrderStatus === 2 && isExecutor(item)">
+            <text class="action-btn action-ship" @click.stop="goEdit(item)">完成出库</text>
+            <text class="action-btn action-view" @click.stop="goView(item)">查看</text>
+          </view>
+          <view class="order-actions" v-else>
+            <text class="action-btn action-view" @click.stop="goView(item)">查看</text>
           </view>
         </view>
       </view>
@@ -90,6 +87,12 @@
     <view class="filter-mask" v-if="showFilter" @click="showFilter = false">
       <view class="filter-panel" @click.stop>
         <view class="card-title">筛选条件</view>
+        <view class="form-item">
+          <text class="form-label">状态</text>
+          <picker :range="statusTabs" range-key="label" @change="onStatusChange">
+            <view class="picker-value">{{ selectedStatusLabel || '全部' }}</view>
+          </picker>
+        </view>
         <view class="form-item">
           <text class="form-label">出库类型</text>
           <picker :range="shipmentTypeOptions" range-key="dictLabel" @change="onTypeChange">
@@ -120,9 +123,11 @@ import { ref, computed, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { listShipmentOrder, delShipmentOrder } from '@/api/wms/shipmentOrder'
 import { useWmsStore } from '@/store/wms'
+import { useUserStore } from '@/store/user'
 import { formatTime } from '@/utils/scan'
 
 const wmsStore = useWmsStore()
+const userStore = useUserStore()
 
 const list = ref([])
 const loading = ref(false)
@@ -132,8 +137,11 @@ const showFilter = ref(false)
 
 const statusTabs = [
   { label: '全部', value: '' },
-  { label: '未出库', value: '0' },
-  { label: '已出库', value: '1' },
+  { label: '草稿', value: '0' },
+  { label: '待审批', value: '1' },
+  { label: '已审批', value: '2' },
+  { label: '已出库', value: '3' },
+  { label: '驳回', value: '-2' },
   { label: '作废', value: '-1' }
 ]
 const currentStatus = ref('')
@@ -161,9 +169,12 @@ const getShipmentTypeLabel = (type) => wmsStore.getDictLabel('wms_shipment_type'
 
 const getStatusTagClass = (status) => {
   const s = String(status)
-  if (s === '1') return 'tag-success'
+  if (s === '3') return 'tag-success'
   if (s === '-1') return 'tag-danger'
-  return 'tag-warning'
+  if (s === '-2') return 'tag-danger'
+  if (s === '1') return 'tag-warning'
+  if (s === '2') return 'tag-info'
+  return 'tag-default'
 }
 
 const getWarehouseLabel = (warehouseId, areaId) => {
@@ -209,6 +220,15 @@ const switchTab = (status) => {
   currentStatus.value = status
   getList(true)
 }
+const onStatusChange = (e) => {
+  const idx = Number(e.detail.value)
+  currentStatus.value = statusTabs[idx].value
+  getList(true)
+}
+const selectedStatusLabel = computed(() => {
+  const tab = statusTabs.find(t => t.value === currentStatus.value)
+  return tab ? tab.label : ''
+})
 
 const handleSearch = () => getList(true)
 const onRefresh = () => { refreshing.value = true; getList(true) }
@@ -236,30 +256,28 @@ const applyFilter = () => {
 
 const goAdd = () => uni.navigateTo({ url: '/pages/shipment/edit' })
 const goEdit = (row) => uni.navigateTo({ url: '/pages/shipment/edit?id=' + row.id })
-const goDetail = (row) => {
-  if (row.shipmentOrderStatus === 0) {
-    goEdit(row)
-  } else {
-    uni.navigateTo({ url: '/pages/shipment/edit?id=' + row.id + '&mode=view' })
-  }
-}
+// ===== 身份校验 =====
+const isApplicant = (row) => String(row.applicantId) === String(userStore.userId)
+const isApprover = (row) => String(row.approverId) === String(userStore.userId)
+const isExecutor = (row) => String(row.executorId) === String(userStore.userId)
 
-const handleDelete = async (row) => {
-  const { confirm } = await uni.showModal({
-    title: '提示',
-    content: `确认删除出库单【${row.shipmentOrderNo}】吗？`
-  })
-  if (confirm) {
-    try {
-      await delShipmentOrder(row.id)
-      uni.showToast({ title: '删除成功', icon: 'success' })
-      getList(true)
-    } catch (e) {}
-  }
-}
+const goView = (row) => uni.navigateTo({ url: '/pages/shipment/edit?id=' + row.id + '&mode=view' })
+
+// ===== 审批操作 =====
+
+
+
+
+
+
+
+
+
+
+
 
 onMounted(() => {
-wmsStore.getDict('wms_shipment_type')
+  wmsStore.getDict('wms_shipment_type')
   wmsStore.getDict('wms_shipment_status')
 })
 
@@ -302,18 +320,22 @@ onShow(() => {
   font-size: 26rpx;
 }
 
-.status-tabs {
-  display: flex;
+.status-tabs-scroll {
+  white-space: nowrap;
   padding: 16rpx 16rpx 0;
+}
+
+.status-tabs {
+  display: inline-flex;
   gap: 8rpx;
 }
 
 .tab-item {
-  flex: 1;
   text-align: center;
-  padding: 16rpx 0;
+  padding: 16rpx 24rpx;
   border-radius: 8rpx;
   background: #ffffff;
+  white-space: nowrap;
 }
 
 .tab-active {
@@ -392,7 +414,11 @@ onShow(() => {
 }
 
 .action-edit { color: #2979ff; }
+.action-submit { color: #e6a23c; }
 .action-delete { color: #e43d33; }
+.action-approve { color: #67c23a; }
+.action-reject { color: #f56c6c; }
+.action-ship { color: #2979ff; font-weight: 600; }
 .action-view { color: #2979ff; }
 
 .empty-tip {

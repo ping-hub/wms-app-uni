@@ -70,18 +70,18 @@
             <text class="order-value">{{ item.receiveUnit }}</text>
           </view>
           <view class="order-row">
-            <text class="order-label">数量/金额</text>
-            <text class="order-value">{{ Math.floor(item.totalQuantity || 0) }}件 / ¥{{ Number(item.payableAmount || 0).toFixed(2) }}</text>
+            <text class="order-label">数量</text>
+            <text class="order-value">{{ Math.floor(item.totalQuantity || 0) }}件</text>
           </view>
         </view>
         <view class="order-footer flex-between">
           <text class="text-secondary">{{ item.createBy }} · {{ formatTime(item.createTime) }}</text>
           <view class="order-actions" v-if="item.receiptOrderStatus === 0">
-            <text class="action-btn action-edit" @click.stop="goEdit(item)">编辑</text>
+            <text class="action-btn action-edit" @click.stop="goDetail(item)">查看</text>
             <text class="action-btn action-delete" @click.stop="handleDelete(item)">删除</text>
           </view>
-          <view class="order-actions" v-else-if="item.receiptOrderStatus === 1">
-            <text class="action-btn action-view">查看</text>
+          <view class="order-actions" v-else>
+            <text class="action-btn action-edit" @click.stop="goDetail(item)">查看</text>
           </view>
         </view>
       </view>
@@ -273,6 +273,17 @@ const applyFilter = () => {
   getList(true)
 }
 
+const handleDelete = async (row) => {
+  const { confirm } = await uni.showModal({ title: '提示', content: `确认删除入库单【${row.receiptOrderNo}】吗？` })
+  if (confirm) {
+    try {
+      await delReceiptOrder(row.id)
+      uni.showToast({ title: '删除成功', icon: 'success' })
+      getList(true)
+    } catch (e) {}
+  }
+}
+
 // 操作
 const goAdd = () => {
   uni.navigateTo({ url: '/pages/receipt/edit' })
@@ -290,21 +301,7 @@ const goDetail = (row) => {
   }
 }
 
-const handleDelete = async (row) => {
-  const { confirm } = await uni.showModal({
-    title: '提示',
-    content: `确认删除入库单【${row.receiptOrderNo}】吗？`
-  })
-  if (!err) {
-    try {
-      await delReceiptOrder(row.id)
-      uni.showToast({ title: '删除成功', icon: 'success' })
-      getList(true)
-    } catch (e) {
-      // error handled in request
-    }
-  }
-}
+
 
 onMounted(() => {
 wmsStore.getDict('wms_receipt_type')

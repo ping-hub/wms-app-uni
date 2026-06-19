@@ -1,353 +1,703 @@
 <template>
   <view class="check-edit-page">
     <scroll-view class="edit-scroll" scroll-y>
-      <!-- 盘点范围 -->
+
+      <!-- 查看模式提示 -->
+      <view v-if="isViewMode && form.checkOrderStatus !== -1" class="card view-banner">
+        <text class="view-text">盘点结果（只读）</text>
+      </view>
+
+      <!-- 基本信息 -->
       <view class="card">
-        <view class="card-title">盘点范围</view>
-        <view class="form-item">
-          <text class="form-label required">范围类型</text>
-          <picker :range="scopeTypeList" range-key="dictLabel" @change="onScopeTypeChange" :value="scopeTypeIndex">
-            <view class="picker-value" :class="{ placeholder: !form.checkScopeType }">
-              {{ scopeTypeLabel || '请选择范围类型' }}
-            </view>
-          </picker>
-        </view>
-        <view class="form-item" v-if="form.checkScopeType === 'warehouse'">
-          <text class="form-label required">仓库</text>
-          <picker :range="warehousePickerList" range-key="warehouseName" @change="onWarehouseChange" :value="warehouseIndex">
-            <view class="picker-value" :class="{ placeholder: !form.warehouseId }">{{ currentWarehouseName || '请选择仓库' }}</view>
-          </picker>
-        </view>
-        <view class="form-item" v-if="form.checkScopeType === 'area'">
-          <text class="form-label required">库区</text>
-          <picker :range="areaPickerList" range-key="areaName" @change="onAreaChange" :value="areaIndex">
-            <view class="picker-value" :class="{ placeholder: !form.areaId }">{{ currentAreaName || '请选择库区' }}</view>
-          </picker>
-        </view>
-        <view class="form-item" v-if="form.checkScopeType === 'rack'">
-          <text class="form-label required">货架</text>
-          <picker :range="rackPickerList" range-key="rackName" @change="onRackChange" :value="rackIndex">
-            <view class="picker-value" :class="{ placeholder: !form.rackId }">{{ currentRackName || '请选择货架' }}</view>
-          </picker>
-        </view>
-        <view class="form-item">
-          <text class="form-label">盘点日期</text>
-          <picker mode="date" @change="onCheckDateChange" :value="form.checkDate">
-            <view class="picker-value" :class="{ placeholder: !form.checkDate }">
-              {{ form.checkDate || '请选择盘点日期' }}
-            </view>
-          </picker>
-        </view>
-        <view class="form-item">
-          <text class="form-label">盘点人</text>
-          <input class="form-input" v-model="form.checkerName" placeholder="请输入盘点人"  placeholder-class="input-placeholder" />
-        </view>
-        <view class="form-item">
-          <text class="form-label">备注</text>
-          <textarea class="form-textarea" v-model="form.remark" placeholder="请输入备注" :maxlength="100"  placeholder-class="input-placeholder" />
-        </view>
-        <view class="detail-actions" v-if="!isViewMode && !form.details.length">
-          <view class="action-card manual-action" style="flex:1" @click="loadInventoryDetails">
-            <text class="action-icon">📋</text>
-            <text class="action-text">加载库存明细</text>
+        <view class="card-title">基本信息</view>
+        <!-- 新建模式：表单 -->
+        <template v-if="isNew && !form.id">
+          <view class="form-item">
+            <text class="form-label required">仓库</text>
+            <picker :range="warehousePickerList" range-key="warehouseName" @change="onWarehouseChange" :value="warehouseIndex">
+              <view class="picker-value" :class="{ placeholder: !form.warehouseId }">{{ form.warehouseId ? currentWarehouseName : '请选择仓库' }}</view>
+            </picker>
           </view>
-        </view>
+          <view class="form-item">
+            <text class="form-label">库区</text>
+            <picker :range="areaPickerList" range-key="areaName" @change="onAreaChange" :value="areaIndex" :disabled="!form.warehouseId">
+              <view class="picker-value" :class="{ placeholder: !form.areaId }">{{ form.areaId ? currentAreaName : '请选择库区' }}</view>
+            </picker>
+          </view>
+          <view class="form-item">
+            <text class="form-label">货架</text>
+            <picker :range="rackPickerList" range-key="rackName" @change="onRackChange" :value="rackIndex" :disabled="!form.areaId">
+              <view class="picker-value" :class="{ placeholder: !form.rackId }">{{ form.rackId ? currentRackName : '请选择货架' }}</view>
+            </picker>
+          </view>
+          <view class="form-item">
+            <text class="form-label required">盘点人</text>
+            <picker :range="userList" range-key="nickName" @change="onCheckerChange" :value="checkerIndex">
+              <view class="picker-value" :class="{ placeholder: !form.checkerName }">{{ form.checkerName || '请选择盘点人' }}</view>
+            </picker>
+          </view>
+          <view class="form-item">
+            <text class="form-label">复核人</text>
+            <picker :range="userList" range-key="nickName" @change="onReviewerChange" :value="reviewerIndex">
+              <view class="picker-value" :class="{ placeholder: !form.reviewerName }">{{ form.reviewerName || '请选择复核人' }}</view>
+            </picker>
+          </view>
+          <view class="form-item">
+            <text class="form-label">备注</text>
+            <textarea class="form-textarea" v-model="form.remark" placeholder="请输入备注" :maxlength="100" placeholder-class="input-placeholder" />
+          </view>
+        </template>
+        <!-- 编辑/查看模式：展示 -->
+        <template v-else>
+          <view class="info-row">
+            <text class="info-label">盘点单号</text>
+            <text class="info-value">{{ form.checkOrderNo }}</text>
+          </view>
+          <view class="info-row">
+            <text class="info-label">仓库</text>
+            <text class="info-value">{{ getWarehouseName(form.warehouseId) }}</text>
+          </view>
+          <view class="info-row" v-if="form.areaId">
+            <text class="info-label">库区</text>
+            <text class="info-value">{{ getAreaName(form.areaId) }}</text>
+          </view>
+          <view class="info-row" v-if="form.rackId">
+            <text class="info-label">货架</text>
+            <text class="info-value">{{ getRackName(form.rackId) }}</text>
+          </view>
+          <view class="info-row">
+            <text class="info-label">盘点人</text>
+            <text class="info-value">{{ form.checkerName || '-' }}</text>
+          </view>
+          <view class="info-row">
+            <text class="info-label">复核人</text>
+            <text class="info-value">{{ form.reviewerName || '-' }}</text>
+          </view>
+          <view class="info-row" v-if="form.remark">
+            <text class="info-label">备注</text>
+            <text class="info-value">{{ form.remark }}</text>
+          </view>
+        </template>
       </view>
 
-      <!-- 盘点明细 -->
-      <view class="card" v-if="form.details.length">
-        <view class="card-title flex-between">
-          <text>盘点明细 ({{ form.details.length }})</text>
-          <text :class="['tag', totalDiff >= 0 ? 'tag-success' : 'tag-danger']">
-            差异合计：{{ Math.round(totalDiff) }}
-          </text>
-        </view>
-        <view v-for="(detail, index) in form.details" :key="index" class="detail-card">
-          <view class="detail-header flex-between">
-            <text class="detail-name">{{ detail.instanceCode || '-' }}</text>
-            <text class="detail-sku text-secondary">{{ detail.itemName || detail.skuName || '-' }}</text>
-          </view>
-          <view class="detail-nums">
-            <view class="num-row">
-              <text class="num-label">系统数</text>
-              <text class="num-value">{{ Math.round(detail.quantity || 0) }}</text>
+      <!-- ===== 扫码盘点区域（仅编辑模式 + 已startCheck） ===== -->
+        <template v-if="!isViewMode && started">
+          <!-- 进度统计 -->
+          <view class="card progress-card">
+            <view class="progress-header">
+              <text class="progress-title">扫码进度</text>
+              <text class="progress-count">{{ matchedCount }} / {{ totalInstanceCount }}</text>
             </view>
-            <view class="num-row" v-if="!isViewMode">
-              <text class="num-label">实盘数</text>
-              <input class="num-input" v-model="detail.checkQuantity" placeholder="0" @blur="calcDifference(detail)" />
-            </view>
-            <view class="num-row" v-else>
-              <text class="num-label">实盘数</text>
-              <text class="num-value">{{ Math.round(detail.checkQuantity || 0) }}</text>
-            </view>
-            <view class="num-row">
-              <text class="num-label">差异</text>
-              <text :class="['num-value', detail.differenceQuantity > 0 ? 'text-success' : detail.differenceQuantity < 0 ? 'text-danger' : '']">
-                {{ Math.round(detail.differenceQuantity || 0) }}
-              </text>
+            <progress :percent="progressPercent" activeColor="#2979ff" stroke-width="8" />
+            <view class="progress-stats">
+              <text class="stat-item">已匹配：<b>{{ matchedCount }}</b></text>
+              <text class="stat-item stat-surplus">盘盈：<b>{{ surplusItems.length }}</b></text>
+              <text class="stat-item">总扫码：<b>{{ scannedCodes.length }}</b></text>
             </view>
           </view>
-        </view>
-      </view>
 
-      <view style="height: 200rpx"></view>
+          <!-- 扫码按钮 -->
+          <view class="card" v-if="!isViewMode">
+            <view class="detail-actions">
+              <view class="action-card scan-action" @tap="handleScan">
+                <text class="action-icon">📷</text>
+                <text class="action-text">扫码盘点</text>
+              </view>
+              <view class="action-card continuous-action" @tap="handleContinuousScan">
+                <text class="action-icon">📷📷</text>
+                <text class="action-text">连续扫码</text>
+              </view>
+            </view>
+          </view>
+
+          <!-- 盘盈明细（实时） -->
+          <view class="card" v-if="surplusItems.length > 0">
+            <view class="card-title">盘盈明细 <text class="badge-surplus">{{ surplusItems.length }}</text></view>
+            <view class="surplus-list">
+              <view class="surplus-item" v-for="(item, idx) in surplusItems" :key="'surplus-' + idx">
+                <text class="surplus-code">{{ item.code }}</text>
+                <text class="surplus-label">账面无此记录</text>
+                <button class="btn-del" @tap="removeSurplus(idx)">×</button>
+              </view>
+            </view>
+          </view>
+
+          <!-- 已扫码列表（最近扫码） -->
+          <view class="card" v-if="scannedCodes.length > 0">
+            <view class="card-title">
+              已扫描编码
+              <text class="text-muted">{{ scannedCodes.length }}个</text>
+            </view>
+            <scroll-view scroll-y class="scan-history-scroll" :style="{ maxHeight: '400rpx' }">
+              <view class="scan-history-list">
+                <view class="scan-history-item" v-for="(code, idx) in recentScans" :key="'scan-' + idx">
+                  <text class="scan-code">{{ code }}</text>
+                  <button class="btn-del-sm" @tap="removeScannedCode(scannedCodes.length - 1 - idx)">×</button>
+                </view>
+              </view>
+              <view class="scan-more" v-if="scannedCodes.length > 20" @tap="showAllScans = !showAllScans">
+                <text>{{ showAllScans ? '收起' : `展开全部 ${scannedCodes.length} 条` }}</text>
+              </view>
+            </scroll-view>
+          </view>
+        </template>
+
+        <!-- ===== 未开始盘点 ===== -->
+        <template v-if="!isViewMode && !isNew && !started">
+          <view class="card start-card">
+            <text class="start-desc">点击下方按钮开始盘点，系统将自动生成盘点明细。</text>
+            <button class="btn-primary" @tap="handleStartCheck" :loading="startLoading">开始盘点</button>
+          </view>
+        </template>
+
+        <!-- ===== 查看模式：结果展示 ===== -->
+        <template v-if="isViewMode && form.checkOrderStatus !== -1">
+          <view class="card" v-if="form.details && form.details.length">
+            <view class="card-title">盘点结果</view>
+            <view class="summary-bar">
+              <text class="summary-tag loss">盘亏 {{ lossCount }} 项</text>
+              <text class="summary-tag gain">盘盈 {{ gainCount }} 项</text>
+              <text class="summary-tag equal">无差异 {{ equalCount }} 项</text>
+            </view>
+            <view v-for="d in form.details" :key="d.skuId" class="sku-result-card"
+              :class="{ 'sku-loss': d.profitAndLoss < 0, 'sku-gain': d.profitAndLoss > 0 }">
+              <view class="sku-result-row">
+                <text class="sku-name-sm">{{ d.itemSku?.itemName || '' }} {{ d.itemSku?.skuName || '' }}</text>
+                <text class="sku-diff" :class="d.profitAndLoss > 0 ? 'text-success' : d.profitAndLoss < 0 ? 'text-danger' : ''">
+                  {{ d.profitAndLoss > 0 ? '+' : '' }}{{ d.profitAndLoss || 0 }}
+                </text>
+              </view>
+              <view class="sku-result-detail">
+                <text>账 {{ d.quantity || 0 }} → 实 {{ d.checkQuantity || 0 }}</text>
+              </view>
+            </view>
+          </view>
+        </template>
+
     </scroll-view>
 
-    <view class="bottom-bar" v-if="!isViewMode">
-      <view class="summary-info">
-        <text class="summary-text">明细：{{ form.details.length }}项</text>
-      </view>
-      <view class="bottom-actions">
-        <button class="btn-save" @click="handleSave">暂存</button>
-        <button class="btn-check" @click="handleCheck">执行盘点</button>
-      </view>
-    </view>
-    <view class="bottom-bar bottom-bar-view" v-else>
-      <button class="btn-close" @click="goBack">关闭</button>
+    <!-- 底部操作栏 -->
+    <view class="footer-bar" v-if="!loading">
+      <!-- 新建模式 -->
+      <template v-if="isNew && !form.id">
+        <button class="btn-outline flex-1" @tap="goBack">取消</button>
+        <button class="btn-primary flex-1" @tap="handleAdd" :loading="saving">提交申请</button>
+      </template>
+      <!-- 编辑模式：已开始盘点 -->
+      <template v-else-if="!isViewMode && started">
+        <button class="btn-outline flex-1" @tap="handleSaveDraft" :loading="saving">暂存</button>
+        <button class="btn-outline flex-1" style="color:#f56c6c;border-color:#f56c6c" @tap="handleVoid">作废</button>
+        <button class="btn-primary flex-1" @tap="handleCompleteCheck" :loading="completing">完成盘点</button>
+      </template>
+      <!-- 编辑模式：未开始 -->
+      <template v-else-if="!isViewMode && !started">
+        <button class="btn-outline flex-1" @tap="goBack">关闭</button>
+        <button class="btn-outline flex-1" style="color:#f56c6c;border-color:#f56c6c" @tap="handleVoid">作废</button>
+      </template>
+      <!-- 查看模式 -->
+      <template v-else>
+        <button class="btn-outline flex-1" @tap="goBack">返回</button>
+      </template>
     </view>
   </view>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { getCheckOrder, addCheckOrder, updateCheckOrder, checkOrder } from '@/api/wms/checkOrder'
-import { listInventoryDetail } from '@/api/wms/inventoryDetail'
-import { listRackNoPage } from '@/api/wms/rack'
+import { ref, reactive, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { useWmsStore } from '@/store/wms'
+import { getCheckOrder, addCheckOrder, updateCheckOrder, startCheck as startCheckApi, verifyCodes, check } from '@/api/wms/checkOrder'
+import { getUserSelectList } from '@/api/common'
+import { parseScanContent } from '@/utils/scan'
 
 const wmsStore = useWmsStore()
+const isNew = ref(false)
 const isViewMode = ref(false)
-const orderId = ref(undefined)
+const loading = ref(false)
+const saving = ref(false)
+const completing = ref(false)
+const startLoading = ref(false)
 
-const form = ref({
-  id: undefined,
-  checkOrderNo: undefined,
-  checkScopeType: 'warehouse',
-  checkOrderStatus: 0,
-  checkOrderTotal: 0,
-  warehouseId: undefined,
-  areaId: undefined,
-  rackId: undefined,
-  checkDate: undefined,
-  checkerName: undefined,
-  reviewerName: undefined,
-  remark: undefined,
-  details: []
+const form = ref({})
+const userList = ref([])
+const warehouseIndex = ref(0)
+const areaIndex = ref(0)
+const rackIndex = ref(0)
+const checkerIndex = ref(0)
+const reviewerIndex = ref(0)
+
+// 扫码驱动
+const started = ref(false)
+const scannedCodes = ref([])
+const surplusItems = ref([])
+const totalInstanceCount = ref(0)
+const skuCount = ref(0)
+const showAllScans = ref(false)
+
+// ===== 计算属性 =====
+const warehousePickerList = computed(() => wmsStore.warehouseList || [])
+const areaPickerList = computed(() => (wmsStore.areaList || []).filter(a => !form.value.warehouseId || a.warehouseId === form.value.warehouseId))
+const rackPickerList = computed(() => (wmsStore.rackList || []).filter(r => !form.value.areaId || r.areaId === form.value.areaId))
+const currentWarehouseName = computed(() => warehousePickerList.value[warehouseIndex.value]?.warehouseName || '')
+const currentAreaName = computed(() => areaPickerList.value[areaIndex.value]?.areaName || '')
+const currentRackName = computed(() => rackPickerList.value[rackIndex.value]?.rackName || '')
+
+const matchedCount = computed(() => scannedCodes.value.length - surplusItems.value.length)
+const progressPercent = computed(() => {
+  if (!totalInstanceCount.value) return 0
+  return Math.min(100, Math.round(matchedCount.value / totalInstanceCount.value * 100))
 })
 
-const scopeTypeList = computed(() => wmsStore.dictMap['wms_check_scope_type'] || [])
-const scopeTypeIndex = computed(() => Math.max(0, scopeTypeList.value.findIndex(d => d.dictValue === form.value.checkScopeType)))
-const scopeTypeLabel = computed(() => scopeTypeList.value.find(d => d.dictValue === form.value.checkScopeType)?.dictLabel || '')
-
-const warehousePickerList = computed(() => wmsStore.warehouseList)
-const warehouseIndex = computed(() => warehousePickerList.value.findIndex(w => w.id === form.value.warehouseId))
-const currentWarehouseName = computed(() => wmsStore.warehouseMap.get(form.value.warehouseId)?.warehouseName || '')
-
-const areaPickerList = computed(() => wmsStore.areaList)
-const areaIndex = computed(() => areaPickerList.value.findIndex(a => a.id === form.value.areaId))
-const currentAreaName = computed(() => wmsStore.areaMap.get(form.value.areaId)?.areaName || '')
-
-const rackPickerList = ref([])
-const rackIndex = computed(() => rackPickerList.value.findIndex(r => r.id === form.value.rackId))
-const currentRackName = computed(() => rackPickerList.value.find(r => r.id === form.value.rackId)?.rackName || '')
-
-const totalDiff = computed(() => {
-  let sum = 0
-  form.value.details.forEach(d => { sum += Number(d.differenceQuantity || 0) })
-  return sum
+const recentScans = computed(() => {
+  if (showAllScans.value) return [...scannedCodes.value].reverse()
+  return [...scannedCodes.value].reverse().slice(0, 20)
 })
 
-const onCheckDateChange = (e) => {
-  form.value.checkDate = e.detail.value
-}
+const lossCount = computed(() => (form.value.details || []).filter(d => (d.profitAndLoss || 0) < 0).length)
+const gainCount = computed(() => (form.value.details || []).filter(d => (d.profitAndLoss || 0) > 0).length)
+const equalCount = computed(() => (form.value.details || []).filter(d => (d.profitAndLoss || 0) === 0).length)
 
-const onScopeTypeChange = (e) => {
-  form.value.checkScopeType = scopeTypeList.value[e.detail.value]?.dictValue
-  form.value.warehouseId = undefined
-  form.value.areaId = undefined
-  form.value.rackId = undefined
-  form.value.details = []
-}
-
+// ===== Picker 事件 =====
 const onWarehouseChange = (e) => {
-  form.value.warehouseId = warehousePickerList.value[e.detail.value]?.id
-  form.value.details = []
+  warehouseIndex.value = Number(e.detail.value)
+  form.value.warehouseId = warehousePickerList.value[warehouseIndex.value]?.id
+  form.value.areaId = null; form.value.rackId = null
+  areaIndex.value = 0; rackIndex.value = 0
 }
-
 const onAreaChange = (e) => {
-  form.value.areaId = areaPickerList.value[e.detail.value]?.id
-  form.value.details = []
-  loadRacksByArea(form.value.areaId)
+  areaIndex.value = Number(e.detail.value)
+  form.value.areaId = areaPickerList.value[areaIndex.value]?.id
+  form.value.rackId = null; rackIndex.value = 0
 }
-
 const onRackChange = (e) => {
-  form.value.rackId = rackPickerList.value[e.detail.value]?.id
-  form.value.details = []
+  rackIndex.value = Number(e.detail.value)
+  form.value.rackId = rackPickerList.value[rackIndex.value]?.id
+}
+const onCheckerChange = (e) => { checkerIndex.value = Number(e.detail.value); form.value.checkerName = userList.value[checkerIndex.value]?.nickName }
+const onReviewerChange = (e) => { reviewerIndex.value = Number(e.detail.value); form.value.reviewerName = userList.value[reviewerIndex.value]?.nickName }
+
+// ===== 名称查找 =====
+const getWarehouseName = (id) => wmsStore.warehouseMap?.get(id)?.warehouseName || '-'
+const getAreaName = (id) => wmsStore.areaMap?.get(id)?.areaName || '-'
+const getRackName = (id) => wmsStore.rackMap?.get(id)?.rackName || '-'
+
+// ===== 加载用户列表 =====
+const loadUserList = async () => {
+  try {
+    const res = await getUserSelectList()
+    userList.value = (res.data || res) || []
+  } catch (e) { userList.value = [] }
 }
 
-const loadRacksByArea = async (areaId) => {
-  if (!areaId) { rackPickerList.value = []; return }
+// ===== 新建提交 =====
+const handleAdd = async () => {
+  if (!form.value.warehouseId) return uni.showToast({ title: '请选择仓库', icon: 'none' })
+  if (!form.value.checkerName) return uni.showToast({ title: '请选择盘点人', icon: 'none' })
+  saving.value = true
   try {
-    const res = await listRackNoPage({ areaId })
-    rackPickerList.value = res.data || []
-  } catch (e) { rackPickerList.value = [] }
+    const now = new Date()
+    const pad = n => String(n).padStart(2, '0')
+    form.value.checkDate = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
+    const checkScopeType = form.value.rackId ? 'rack' : (form.value.areaId ? 'area' : 'warehouse')
+    await addCheckOrder({ ...form.value, checkScopeType, checkOrderStatus: 0 })
+    uni.showToast({ title: '提交成功', icon: 'success' })
+    setTimeout(() => uni.redirectTo({ url: '/pages/check/list' }), 1000)
+  } catch (e) {} finally { saving.value = false }
 }
 
-const loadInventoryDetails = async () => {
-  if (!form.value.checkScopeType) return uni.showToast({ title: '请选择范围类型', icon: 'none' })
-  if (form.value.checkScopeType === 'warehouse' && !form.value.warehouseId) return uni.showToast({ title: '请选择仓库', icon: 'none' })
-  if (form.value.checkScopeType === 'area' && !form.value.areaId) return uni.showToast({ title: '请选择库区', icon: 'none' })
-  if (form.value.checkScopeType === 'rack' && !form.value.rackId) return uni.showToast({ title: '请选择货架', icon: 'none' })
-
+// ===== 开始盘点 =====
+const handleStartCheck = async () => {
+  startLoading.value = true
   try {
-    const query = { pageNum: 1, pageSize: 500 }
-    if (form.value.warehouseId) query.warehouseId = form.value.warehouseId
-    if (form.value.areaId) query.areaId = form.value.areaId
-    if (form.value.rackId) query.rackId = form.value.rackId
-    const res = await listInventoryDetail(query)
-    const rows = res.rows || []
-    form.value.details = rows.map(it => ({
-      skuId: it.skuId,
-      instanceCode: it.instanceCode || '',
-      itemCode: it.itemCode || '',
-      itemName: it.itemName || '',
-      skuName: it.skuName || '',
-      quantity: it.remainQuantity || it.quantity || 0,
-      checkQuantity: it.remainQuantity || it.quantity || 0,
-      differenceQuantity: 0,
-      itemInstanceId: it.itemInstanceId,
-      boxId: it.boxId,
-      warehouseId: it.warehouseId,
-      areaId: it.areaId,
-      rackId: it.rackId,
-      locationId: it.locationId,
-      inventoryDetailId: it.id
-    }))
-    uni.showToast({ title: `已加载${form.value.details.length}条库存明细`, icon: 'success' })
+    const res = await startCheckApi(form.value.id)
+    const data = res.data || res
+    totalInstanceCount.value = data.totalInstanceCount || 0
+    skuCount.value = data.skuCount || 0
+    started.value = true
+    uni.showToast({ title: `已加载 ${skuCount.value} 种SKU，共 ${totalInstanceCount.value} 件`, icon: 'none', duration: 2500 })
   } catch (e) {
-    uni.showToast({ title: '加载库存明细失败', icon: 'none' })
+    uni.showToast({ title: '开始盘点失败', icon: 'none' })
+  } finally { startLoading.value = false }
+}
+
+// ===== 扫码 =====
+const handleScan = async () => {
+  try {
+    const res = await uni.scanCode({
+      scanType: ['qrCode', 'barCode'],
+      autoDecodeCharSet: true
+    })
+    // 调试：显示原始返回
+    console.log('[盘点扫码] typeof res:', typeof res)
+    console.log('[盘点扫码] Array.isArray:', Array.isArray(res))
+    console.log('[盘点扫码] res:', JSON.stringify(res))
+
+    // 多格式兼容提取扫码内容
+    let content = ''
+    if (typeof res === 'string') {
+      content = res
+    } else if (res?.result) {
+      content = res.result
+    } else if (Array.isArray(res)) {
+      const data = res[1] || res[0]
+      content = data?.result || ''
+      if (!content && typeof data === 'string') content = data
+    }
+
+    if (!content) {
+      uni.showToast({ title: '扫码结果为空: ' + JSON.stringify(res).substring(0, 50), icon: 'none', duration: 3000 })
+      return
+    }
+
+    // URL 解码
+    try {
+      const decoded = decodeURIComponent(content)
+      if (decoded !== content) content = decoded
+    } catch (e) {}
+
+    console.log('[盘点扫码] 最终内容:', content)
+
+    const parsed = parseScanContent(content)
+    console.log('[盘点扫码] 解析结果:', JSON.stringify(parsed.parsed))
+
+    const code = parsed.parsed?.instanceCode || content
+    if (!code) {
+      uni.showToast({ title: '未识别到实例编码', icon: 'none', duration: 2500 })
+      return
+    }
+    await addScannedCode(code)
+  } catch (e) {
+    console.error('[盘点扫码] 异常:', e)
+    const msg = e?.errMsg || e?.message || String(e) || ''
+    if (msg && !msg.includes('cancel')) {
+      uni.showToast({ title: '扫码失败: ' + msg.substring(0, 40), icon: 'none', duration: 2500 })
+    }
   }
 }
 
-const calcDifference = (detail) => {
-  const sys = Number(detail.quantity || 0)
-  detail.checkQuantity = Math.floor(Number(detail.checkQuantity || 0))
-  const check = Number(detail.checkQuantity || 0)
-  detail.differenceQuantity = Math.floor(check - sys)
+const continuousScanning = ref(false)
+
+const handleContinuousScan = async () => {
+  continuousScanning.value = true
+  doContinuousScan()
 }
 
-const buildSubmitDetails = () => form.value.details.map(it => ({
-  id: it.id, checkOrderId: form.value.id, skuId: it.skuId,
-  quantity: it.quantity, checkQuantity: it.checkQuantity,
-  differenceQuantity: it.differenceQuantity,
-  itemInstanceId: it.itemInstanceId, boxId: it.boxId
-}))
-
-const buildSubmitParams = (checkOrderStatus) => ({
-  id: form.value.id, checkOrderNo: form.value.checkOrderNo, checkOrderStatus,
-  checkScopeType: form.value.checkScopeType,
-  checkOrderTotal: totalDiff.value,
-  warehouseId: form.value.warehouseId, areaId: form.value.areaId, rackId: form.value.rackId,
-  checkDate: form.value.checkDate,
-  checkerName: form.value.checkerName, reviewerName: form.value.reviewerName,
-  remark: form.value.remark, details: buildSubmitDetails()
-})
-
-const validate = () => {
-  if (!form.value.checkScopeType) { uni.showToast({ title: '请选择范围类型', icon: 'none' }); return false }
-  return true
-}
-
-const handleSave = async () => {
-  if (!validate()) return
+const doContinuousScan = async () => {
+  if (!continuousScanning.value) return
   try {
-    const params = buildSubmitParams(0)
-    if (params.id) await updateCheckOrder(params)
-    else await addCheckOrder(params)
+    const res = await uni.scanCode({
+      scanType: ['qrCode', 'barCode'],
+      autoDecodeCharSet: true
+    })
+    let content = ''
+    if (typeof res === 'string') {
+      content = res
+    } else if (res?.result) {
+      content = res.result
+    } else if (Array.isArray(res)) {
+      const data = res[1] || res[0]
+      content = data?.result || ''
+      if (!content && typeof data === 'string') content = data
+    }
+    if (content) {
+      try {
+        const decoded = decodeURIComponent(content)
+        if (decoded !== content) content = decoded
+      } catch (e) {}
+      const parsed = parseScanContent(content)
+      const code = parsed.parsed?.instanceCode || content
+      if (code) {
+        if (scannedCodes.value.includes(code)) {
+          uni.showToast({ title: '重复：' + code, icon: 'none' })
+          uni.vibrateShort()
+        } else {
+          await addScannedCode(code)
+          uni.vibrateShort()
+        }
+      }
+    }
+    // 继续扫码
+    setTimeout(() => doContinuousScan(), 300)
+  } catch (e) {
+    console.error('[盘点连续扫码] 异常:', e)
+    // 用户取消，结束连续扫码
+    continuousScanning.value = false
+  }
+}
+
+const addScannedCode = async (code) => {
+  // 去重
+  if (scannedCodes.value.includes(code)) {
+    uni.showToast({ title: '重复扫码', icon: 'none' })
+    return
+  }
+  scannedCodes.value.push(code)
+
+  // 验码：检测是否属于盘点范围
+  try {
+    const res = await verifyCodes(form.value.id, [code])
+    const data = res.data || res
+    if (data.surplus > 0 && data.surplusCodes?.length) {
+      data.surplusCodes.forEach(c => {
+        surplusItems.value.push({ code: c })
+      })
+      uni.showToast({ title: '发现盘盈！', icon: 'none' })
+    }
+  } catch (e) {
+    // 验码失败不阻断扫码流程
+  }
+}
+
+const removeScannedCode = (idx) => {
+  const code = scannedCodes.value[idx]
+  scannedCodes.value.splice(idx, 1)
+  // 移除对应盘盈记录
+  const surplusIdx = surplusItems.value.findIndex(s => s.code === code)
+  if (surplusIdx >= 0) surplusItems.value.splice(surplusIdx, 1)
+}
+
+const removeSurplus = (idx) => {
+  const item = surplusItems.value[idx]
+  surplusItems.value.splice(idx, 1)
+  // 同步移除已扫码
+  const codeIdx = scannedCodes.value.indexOf(item.code)
+  if (codeIdx >= 0) scannedCodes.value.splice(codeIdx, 1)
+}
+
+// ===== 暂存 =====
+const handleSaveDraft = async () => {
+  saving.value = true
+  try {
+    await updateCheckOrder({
+      id: form.value.id,
+      checkOrderNo: form.value.checkOrderNo,
+      warehouseId: form.value.warehouseId,
+      areaId: form.value.areaId,
+      rackId: form.value.rackId,
+      checkScopeType: form.value.checkScopeType,
+      checkerName: form.value.checkerName,
+      reviewerName: form.value.reviewerName,
+      remark: form.value.remark,
+      checkOrderTotal: form.value.checkOrderTotal || 0,
+      scannedInstanceCodes: scannedCodes.value,
+    })
     uni.showToast({ title: '暂存成功', icon: 'success' })
-    setTimeout(() => goBack(), 1000)
-  } catch (e) {}
+    setTimeout(() => uni.redirectTo({ url: '/pages/check/list' }), 1000)
+  } catch (e) {
+    uni.showToast({ title: '暂存失败', icon: 'none' })
+  } finally { saving.value = false }
 }
 
-const handleCheck = async () => {
-  if (!validate()) return
-  if (!form.value.details.length) return uni.showToast({ title: '请加载库存明细', icon: 'none' })
-  const { confirm } = await uni.showModal({ title: '确认盘点', content: `确认执行盘点吗？共${form.value.details.length}项` })
+// ===== 作废 =====
+const handleVoid = async () => {
+  const { confirm } = await uni.showModal({ title: '提示', content: '确认作废盘点单吗？' })
   if (!confirm) return
+  saving.value = true
   try {
-    const params = buildSubmitParams(form.value.checkOrderStatus)
-    await checkOrder(params)
-    uni.showToast({ title: '盘点成功', icon: 'success' })
-    setTimeout(() => goBack(), 1000)
-  } catch (e) {}
+    await updateCheckOrder({
+      id: form.value.id,
+      checkOrderNo: form.value.checkOrderNo,
+      warehouseId: form.value.warehouseId,
+      areaId: form.value.areaId,
+      rackId: form.value.rackId,
+      checkScopeType: form.value.checkScopeType,
+      checkerName: form.value.checkerName,
+      reviewerName: form.value.reviewerName,
+      remark: form.value.remark,
+      checkOrderTotal: form.value.checkOrderTotal || 0,
+      checkOrderStatus: -1,
+    })
+    uni.showToast({ title: '已作废', icon: 'success' })
+    setTimeout(() => uni.redirectTo({ url: '/pages/check/list' }), 1000)
+  } catch (e) {
+    uni.showToast({ title: '作废失败', icon: 'none' })
+  } finally { saving.value = false }
 }
 
-const goBack = () => uni.redirectTo({ url: "/pages/check/list" })
+// ===== 完成盘点 =====
+const handleCompleteCheck = async () => {
+  if (scannedCodes.value.length === 0) {
+    return uni.showToast({ title: '尚未扫描任何器材', icon: 'none' })
+  }
+  const { confirm } = await uni.showModal({
+    title: '确认完成',
+    content: `已匹配 ${matchedCount.value}/${totalInstanceCount.value}，盘盈 ${surplusItems.value.length} 个（总扫码 ${scannedCodes.value.length} 个）。确认盘点结束？`
+  })
+  if (!confirm) return
 
+  completing.value = true
+  try {
+    const now = new Date()
+    const pad = n => String(n).padStart(2, '0')
+    const checkDate = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
+
+    await check({
+      id: form.value.id,
+      checkOrderNo: form.value.checkOrderNo,
+      warehouseId: form.value.warehouseId,
+      areaId: form.value.areaId,
+      rackId: form.value.rackId,
+      checkScopeType: form.value.checkScopeType,
+      checkDate,
+      checkerName: form.value.checkerName,
+      reviewerName: form.value.reviewerName,
+      remark: form.value.remark,
+      scannedInstanceCodes: scannedCodes.value,
+    })
+    uni.showToast({ title: '盘点完成', icon: 'success' })
+    setTimeout(() => uni.redirectTo({ url: '/pages/check/list' }), 1000)
+  } catch (e) {
+    uni.showToast({ title: '盘点失败', icon: 'none' })
+  } finally { completing.value = false }
+}
+
+// ===== 加载详情 =====
 const loadDetail = async (id) => {
+  loading.value = true
   try {
     const res = await getCheckOrder(id)
-    const data = res.data
-    form.value = {
-      ...data,
-      details: (data.details || []).map(it => ({
+    const data = res.data || res
+    data.checkScopeType = data.checkScopeType || (data.rackId ? 'rack' : (data.areaId ? 'area' : 'warehouse'))
+    form.value = { ...data }
+
+    // 如果已有明细（已startCheck或已完成），标记为已开始
+    if (data.details && data.details.length > 0) {
+      started.value = true
+      skuCount.value = data.details.length
+      // 计算账面实例总数
+      totalInstanceCount.value = data.details.reduce((sum, d) => sum + (Number(d.quantity) || 0), 0)
+    }
+
+    // 查看模式：如果有盘点结果，展示差异
+    if (data.checkOrderStatus === 1 && data.details) {
+      form.value.details = data.details.map(it => ({
         ...it,
-        instanceCode: it.instanceCode || it.itemInstance?.instanceCode || '',
-        itemCode: it.itemCode || it.itemSku?.item?.itemCode || '',
-        quantity: Number(it.quantity || 0),
-        checkQuantity: Number(it.checkQuantity || 0),
-        differenceQuantity: Number(it.differenceQuantity || 0)
+        checkQuantity: it.checkQuantity ?? it.quantity,
+        profitAndLoss: it.profitAndLoss ?? it.differenceQuantity ?? 0
       }))
     }
-    if (form.value.areaId) loadRacksByArea(form.value.areaId)
-  } catch (e) {}
+
+    // 恢复已保存的扫码数据（暂存恢复）
+    if (data.checkOrderStatus === 0 && data.instances) {
+      const savedScanned = data.instances.filter(i => i.resultType === 'scanned')
+      if (savedScanned.length > 0) {
+        scannedCodes.value = savedScanned.map(i => i.instanceCode)
+        // 验码恢复盘盈
+        try {
+          const res2 = await verifyCodes(id, scannedCodes.value)
+          const vData = res2.data || res2
+          if (vData.surplus > 0 && vData.surplusCodes?.length) {
+            surplusItems.value = vData.surplusCodes.map(c => ({ code: c }))
+          }
+        } catch (e) {}
+      }
+    }
+  } catch (e) {} finally { loading.value = false }
 }
 
-onMounted(async () => {
-  await Promise.all([
-    wmsStore.getDict('wms_check_status'),
-    wmsStore.getDict('wms_check_scope_type'),
-    wmsStore.loadWarehouses(),
-    wmsStore.loadAreas()
-  ])
-  const pages = getCurrentPages()
-  const page = pages[pages.length - 1]
-  const options = page.options || page.$page?.options || {}
-  if (options.id) { orderId.value = options.id; await loadDetail(options.id) }
-  if (options.mode === 'view') isViewMode.value = true
+const goBack = () => { if (isNew.value) uni.redirectTo({ url: '/pages/check/list' }); else uni.navigateBack() }
+
+onMounted(() => {
+  wmsStore.loadWarehouses()
+  wmsStore.loadAreas()
+  wmsStore.loadRacks()
+  loadUserList()
+})
+
+onLoad((options) => {
+  if (options.mode === 'view') {
+    isViewMode.value = true
+    uni.setNavigationBarTitle({ title: '盘点单详情' })
+    if (options.id) loadDetail(options.id)
+  } else if (!options.id) {
+    isNew.value = true
+    uni.setNavigationBarTitle({ title: '新增盘点单' })
+  } else {
+    loadDetail(options.id)
+  }
 })
 </script>
 
 <style lang="scss" scoped>
-.check-edit-page { min-height: 100vh; background-color: #f5f6fa; }
-.edit-scroll { height: calc(100vh - 160rpx); }
+.check-edit-page { min-height: 100vh; background: #f5f6fa; display: flex; flex-direction: column; }
+.edit-scroll { flex: 1; padding: 16rpx; padding-bottom: 180rpx; }
+.view-banner { background: #e8f0fe; .view-text { color: #2979ff; font-weight: 600; } }
+.info-row { display: flex; justify-content: space-between; padding: 8rpx 0; }
+.info-label { color: #999; font-size: 26rpx; }
+.info-value { color: #333; font-size: 26rpx; text-align: right; max-width: 60%; }
+.text-primary { color: #2979ff; font-size: 26rpx; }
+.text-muted { color: #999; font-size: 24rpx; margin-left: 12rpx; }
+.text-danger { color: #f56c6c; }
+.text-success { color: #67c23a; }
+
+/* 表单控件 */
 .form-item { margin-bottom: 24rpx; }
 .form-label { display: block; font-size: 26rpx; color: #666666; margin-bottom: 8rpx; }
 .form-label.required::before { content: '*'; color: #e43d33; margin-right: 4rpx; }
-.form-input { width: 100%; height: 76rpx; background: #ffffff; border-radius: 10rpx; padding: 0 20rpx; font-size: 28rpx; border: 2rpx solid #e8e8e8; box-sizing: border-box; }
 .form-textarea { width: 100%; height: 120rpx; background: #ffffff; border-radius: 10rpx; padding: 16rpx 20rpx; font-size: 28rpx; border: 2rpx solid #e8e8e8; box-sizing: border-box; }
-.picker-value { height: 76rpx; line-height: 76rpx; background: #ffffff; border-radius: 10rpx; padding: 0 20rpx; font-size: 28rpx; border: 2rpx solid #e8e8e8; color: #333333; }
+.picker-value { height: 76rpx; line-height: 76rpx; background: #ffffff; border-radius: 10rpx; padding: 0 20rpx; font-size: 28rpx; border: 2rpx solid #e8e8e8; color: #333333; position: relative; }
+.picker-value::after { content: '\25BC'; position: absolute; right: 20rpx; top: 50%; transform: translateY(-50%); font-size: 20rpx; color: #999999; }
 .picker-value.placeholder { color: #c0c4cc; }
-.detail-actions { display: flex; gap: 16rpx; margin-bottom: 24rpx; }
-.action-card { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 20rpx 12rpx; background: #f5f6fa; border-radius: 12rpx; border: 2rpx dashed #d0d0d0; }
-.manual-action { border-color: #ff9900; background: #fff8e6; }
-.action-icon { font-size: 40rpx; margin-bottom: 4rpx; }
-.action-text { font-size: 24rpx; color: #333333; }
-.detail-card { background: #fafbfc; border: 2rpx solid #e8e8e8; border-radius: 12rpx; padding: 20rpx; margin-bottom: 16rpx; }
-.detail-header { margin-bottom: 12rpx; }
-.detail-name { font-size: 28rpx; font-weight: 500; color: #333333; }
-.detail-sku { font-size: 24rpx; }
-.detail-nums { display: flex; gap: 16rpx; }
-.num-row { flex: 1; display: flex; flex-direction: column; align-items: center; }
-.num-label { font-size: 22rpx; color: #999999; margin-bottom: 8rpx; }
-.num-value { font-size: 28rpx; font-weight: 600; color: #333333; }
-.num-input { width: 100%; height: 64rpx; background: #f5f6fa; border-radius: 8rpx; padding: 0 16rpx; font-size: 28rpx; border: 2rpx solid #ff9900; box-sizing: border-box; text-align: center; }
-.bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #f5f6fa; padding: 16rpx 24rpx; padding-bottom: calc(16rpx + env(safe-area-inset-bottom)); box-shadow: 0 -4rpx 16rpx rgba(0, 0, 0, 0.06); display: flex; align-items: center; justify-content: space-between; z-index: 100; }
-.summary-info { display: flex; flex-direction: column; }
-.summary-text { font-size: 24rpx; color: #666666; }
-.bottom-actions { display: flex; gap: 16rpx; }
-.btn-save { height: 80rpx; padding: 0 40rpx; background: #f5f6fa; color: #ff9900; border-radius: 12rpx; font-size: 28rpx; border: 2rpx solid #ff9900; line-height: 80rpx; &::after { border: none; } }
-.btn-check { height: 80rpx; padding: 0 40rpx; background: #ff9900; color: #ffffff; border-radius: 12rpx; font-size: 28rpx; border: none; line-height: 80rpx; &::after { border: none; } }
-.btn-close { width: 100%; height: 80rpx; background: #f5f6fa; color: #666666; border-radius: 12rpx; font-size: 28rpx; border: none; line-height: 80rpx; &::after { border: none; } }
-.input-placeholder { color: #c0c4cc; }
+:deep(.input-placeholder) { color: #c0c4cc; }
+
+/* 进度卡片 */
+.progress-card { background: linear-gradient(135deg, #e8f0fe, #f0f7ff); }
+.progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12rpx; }
+.progress-title { font-size: 30rpx; font-weight: 600; color: #333; }
+.progress-count { font-size: 36rpx; font-weight: 700; color: #2979ff; }
+.progress-stats { display: flex; gap: 24rpx; margin-top: 12rpx; }
+.stat-item { font-size: 24rpx; color: #666; b { color: #333; } }
+.stat-surplus b { color: #67c23a; }
+
+/* 扫码按钮 */
+.detail-actions { display: flex; gap: 16rpx; }
+.action-card { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 24rpx; border-radius: 12rpx; }
+.scan-action { background: #e8f0fe; }
+.continuous-action { background: #e8f5e9; }
+.action-icon { font-size: 44rpx; margin-bottom: 8rpx; }
+.action-text { font-size: 26rpx; color: #333; font-weight: 500; }
+
+/* 盘盈列表 */
+.badge-surplus { background: #67c23a; color: #fff; font-size: 20rpx; padding: 2rpx 10rpx; border-radius: 20rpx; margin-left: 8rpx; }
+.surplus-list { }
+.surplus-item { display: flex; align-items: center; padding: 12rpx 0; border-bottom: 1rpx solid #eee; }
+.surplus-code { font-family: monospace; font-size: 24rpx; color: #333; flex: 1; word-break: break-all; }
+.surplus-label { font-size: 22rpx; color: #67c23a; margin-right: 12rpx; }
+
+/* 已扫列表 */
+.scan-history-scroll { }
+.scan-history-list { }
+.scan-history-item { display: flex; align-items: center; justify-content: space-between; padding: 8rpx 0; border-bottom: 1rpx solid #f0f0f0; }
+.scan-code { font-family: monospace; font-size: 22rpx; color: #555; flex: 1; word-break: break-all; }
+.scan-more { text-align: center; padding: 12rpx; color: #2979ff; font-size: 24rpx; }
+
+/* 删除按钮 */
+.btn-del { width: 44rpx; height: 44rpx; padding: 0; margin: 0; background: #f56c6c; color: #fff; border-radius: 50%; font-size: 28rpx; line-height: 44rpx; border: none; min-height: auto; &::after { border: none; } }
+.btn-del-sm { width: 36rpx; height: 36rpx; padding: 0; margin: 0; background: #eee; color: #999; border-radius: 50%; font-size: 22rpx; line-height: 36rpx; border: none; min-height: auto; &::after { border: none; } }
+
+/* 开始盘点卡片 */
+.start-card { text-align: center; padding: 48rpx 24rpx; }
+.start-desc { display: block; color: #999; margin-bottom: 32rpx; font-size: 26rpx; }
+
+/* 查看模式结果 */
+.summary-bar { display: flex; flex-wrap: wrap; gap: 12rpx; margin-bottom: 16rpx; }
+.summary-tag { font-size: 22rpx; padding: 4rpx 14rpx; border-radius: 4rpx; }
+.summary-tag.loss { background: #fef0f0; color: #f56c6c; }
+.summary-tag.gain { background: #f0f9eb; color: #67c23a; }
+.summary-tag.equal { background: #f4f4f5; color: #909399; }
+.sku-result-card { background: #fafafa; border-radius: 8rpx; margin-bottom: 8rpx; padding: 16rpx; border-left: 6rpx solid #ddd; }
+.sku-result-card.sku-loss { border-left-color: #f56c6c; }
+.sku-result-card.sku-gain { border-left-color: #67c23a; }
+.sku-result-row { display: flex; justify-content: space-between; align-items: center; }
+.sku-name-sm { font-size: 26rpx; color: #333; font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sku-diff { font-size: 28rpx; font-weight: 700; min-width: 60rpx; text-align: right; }
+.sku-result-detail { font-size: 22rpx; color: #999; margin-top: 4rpx; }
+
+/* 通用按钮 */
+.btn-primary { background: #2979ff; color: #fff; border: none; border-radius: 12rpx; height: 80rpx; line-height: 80rpx; font-size: 30rpx; &::after { border: none; } }
+.btn-outline { background: #fff; color: #666; border: 1rpx solid #ddd; border-radius: 12rpx; height: 80rpx; line-height: 80rpx; font-size: 28rpx; &::after { border: none; } }
+.flex-1 { flex: 1; }
+
+/* 底部栏 */
+.footer-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; padding: 20rpx 24rpx; padding-bottom: calc(20rpx + env(safe-area-inset-bottom)); display: flex; gap: 16rpx; border-top: 1rpx solid #eee; z-index: 100; box-shadow: 0 -2rpx 8rpx rgba(0,0,0,0.06); }
 </style>
