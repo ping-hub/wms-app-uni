@@ -62,6 +62,18 @@
       }
     },
     {
+      "path": "pages/offline-check/index",
+      "style": {
+        "navigationBarTitleText": "离线盘点"
+      }
+    },
+    {
+      "path": "pages/offline-check/task",
+      "style": {
+        "navigationBarTitleText": "离线盘点作业"
+      }
+    },
+    {
       "path": "pages/scan/index",
       "style": {
         "navigationBarTitleText": "扫码查找"

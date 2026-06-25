@@ -84,6 +84,16 @@
             </view>
             <text class="func-card-arrow">›</text>
           </view>
+          <view class="func-card" @click="goTo('/pages/offline-check/index')">
+            <view class="func-card-icon func-icon-offline">
+              <text class="icon-text">📡</text>
+            </view>
+            <view class="func-card-info">
+              <text class="func-card-label">离线盘点</text>
+              <text class="func-card-desc">无网环境扫码盘点作业</text>
+            </view>
+            <text class="func-card-arrow">›</text>
+          </view>
         </view>
       </view>
 
@@ -351,6 +361,7 @@ const handleLogout = async () => {
 .func-icon-check { background: #fff8e6; }
 .func-icon-instance { background: #fee8f0; }
 .func-icon-scan { background: #e8f4fe; }
+.func-icon-offline { background: #fff3e0; }
 
 .icon-text {
   font-size: 40rpx;
