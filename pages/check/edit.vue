@@ -3,7 +3,7 @@
     <scroll-view class="edit-scroll" scroll-y>
 
       <!-- 查看模式提示 -->
-      <view v-if="isViewMode && form.checkOrderStatus !== -1" class="card view-banner">
+      <view v-if="isViewMode && !isVoid" class="card view-banner">
         <text class="view-text">盘点结果（只读）</text>
       </view>
 
@@ -31,18 +31,6 @@
             </picker>
           </view>
           <view class="form-item">
-            <text class="form-label required">盘点人</text>
-            <picker :range="userList" range-key="nickName" @change="onCheckerChange" :value="checkerIndex">
-              <view class="picker-value" :class="{ placeholder: !form.checkerName }">{{ form.checkerName || '请选择盘点人' }}</view>
-            </picker>
-          </view>
-          <view class="form-item">
-            <text class="form-label">复核人</text>
-            <picker :range="userList" range-key="nickName" @change="onReviewerChange" :value="reviewerIndex">
-              <view class="picker-value" :class="{ placeholder: !form.reviewerName }">{{ form.reviewerName || '请选择复核人' }}</view>
-            </picker>
-          </view>
-          <view class="form-item">
             <text class="form-label">备注</text>
             <textarea class="form-textarea" v-model="form.remark" placeholder="请输入备注" :maxlength="100" placeholder-class="input-placeholder" />
           </view>
@@ -65,19 +53,43 @@
             <text class="info-label">货架</text>
             <text class="info-value">{{ getRackName(form.rackId) }}</text>
           </view>
-          <view class="info-row">
+          <view class="info-row" v-if="form.executorName">
             <text class="info-label">盘点人</text>
-            <text class="info-value">{{ form.checkerName || '-' }}</text>
+            <text class="info-value">{{ form.executorName }}</text>
           </view>
-          <view class="info-row">
+          <view class="info-row" v-if="form.reviewerName">
             <text class="info-label">复核人</text>
-            <text class="info-value">{{ form.reviewerName || '-' }}</text>
+            <text class="info-value">{{ form.reviewerName }}</text>
           </view>
           <view class="info-row" v-if="form.remark">
             <text class="info-label">备注</text>
             <text class="info-value">{{ form.remark }}</text>
           </view>
+          <view class="info-row" v-if="form.approveRemark && isRejected">
+            <text class="info-label">驳回原因</text>
+            <text class="info-value" style="color:#f56c6c">{{ form.approveRemark }}</text>
+          </view>
         </template>
+      </view>
+
+      <!-- ===== 审批控件：草稿/已驳回 → 盘点人选择 ===== -->
+      <view class="card approval-card" v-if="showApprovalControls">
+        <view class="form-item">
+          <text class="form-label required">盘点人</text>
+          <picker :range="userList" range-key="nickName" @change="onCheckerChange" :value="checkerIndex">
+            <view class="picker-value" :class="{ placeholder: !submitExecutorId }">{{ submitExecutorName || '请选择盘点人' }}</view>
+          </picker>
+        </view>
+      </view>
+
+      <!-- ===== 审批控件：待盘点 → 复核人选择 ===== -->
+      <view class="card approval-card" v-if="showReviewerSelect">
+        <view class="form-item">
+          <text class="form-label required">复核人</text>
+          <picker :range="userList" range-key="nickName" @change="onReviewerChange" :value="reviewerIndex">
+            <view class="picker-value" :class="{ placeholder: !form.reviewerId }">{{ form.reviewerName || '请选择复核人' }}</view>
+          </picker>
+        </view>
       </view>
 
       <!-- ===== 扫码盘点区域（仅编辑模式 + 已startCheck） ===== -->
@@ -143,7 +155,7 @@
         </template>
 
         <!-- ===== 未开始盘点 ===== -->
-        <template v-if="!isViewMode && !isNew && !started">
+        <template v-if="isPendingCheck && !isViewMode && !started">
           <view class="card start-card">
             <text class="start-desc">点击下方按钮开始盘点，系统将自动生成盘点明细。</text>
             <button class="btn-primary" @tap="handleStartCheck" :loading="startLoading">开始盘点</button>
@@ -151,7 +163,7 @@
         </template>
 
         <!-- ===== 查看模式：结果展示 ===== -->
-        <template v-if="isViewMode && form.checkOrderStatus !== -1">
+        <template v-if="isViewMode && !isVoid">
           <view class="card" v-if="form.details && form.details.length">
             <view class="card-title">盘点结果</view>
             <view class="summary-bar">
@@ -181,20 +193,27 @@
       <!-- 新建模式 -->
       <template v-if="isNew && !form.id">
         <button class="btn-outline flex-1" @tap="goBack">取消</button>
-        <button class="btn-primary flex-1" @tap="handleAdd" :loading="saving">提交申请</button>
+        <button class="btn-primary flex-1" @tap="handleAdd" :loading="saving">保存草稿</button>
       </template>
-      <!-- 编辑模式：已开始盘点 -->
-      <template v-else-if="!isViewMode && started">
+      <!-- 草稿/已驳回：提交审批、作废 -->
+      <template v-else-if="showApprovalControls">
+        <button class="btn-outline flex-1" @tap="goBack">返回</button>
+        <button class="btn-outline flex-1" style="color:#f56c6c;border-color:#f56c6c" @tap="handleVoid">作废</button>
+        <button class="btn-primary flex-1" @tap="handleSubmitForApproval" :loading="saving">提交</button>
+      </template>
+      <!-- 待盘点：暂存、作废、完成盘点 -->
+      <template v-else-if="isPendingCheck && !isViewMode">
         <button class="btn-outline flex-1" @tap="handleSaveDraft" :loading="saving">暂存</button>
         <button class="btn-outline flex-1" style="color:#f56c6c;border-color:#f56c6c" @tap="handleVoid">作废</button>
-        <button class="btn-primary flex-1" @tap="handleCompleteCheck" :loading="completing">完成盘点</button>
+        <button class="btn-primary flex-1" @tap="handleCompleteCheck" :loading="completing">提交复核</button>
       </template>
-      <!-- 编辑模式：未开始 -->
-      <template v-else-if="!isViewMode && !started">
-        <button class="btn-outline flex-1" @tap="goBack">关闭</button>
-        <button class="btn-outline flex-1" style="color:#f56c6c;border-color:#f56c6c" @tap="handleVoid">作废</button>
+      <!-- 待复核：驳回、复核通过 -->
+      <template v-else-if="isPendingReview && !isViewMode">
+        <button class="btn-outline flex-1" @tap="goBack">返回</button>
+        <button class="btn-outline flex-1" style="color:#f56c6c;border-color:#f56c6c" @tap="handleReject">驳回</button>
+        <button class="btn-primary flex-1" @tap="handleApprove" :loading="completing">复核通过</button>
       </template>
-      <!-- 查看模式 -->
+      <!-- 查看模式/已完成/已作废 -->
       <template v-else>
         <button class="btn-outline flex-1" @tap="goBack">返回</button>
       </template>
@@ -206,7 +225,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { useWmsStore } from '@/store/wms'
-import { getCheckOrder, addCheckOrder, updateCheckOrder, startCheck as startCheckApi, verifyCodes, check } from '@/api/wms/checkOrder'
+import { getCheckOrder, addCheckOrder, updateCheckOrder, startCheck as startCheckApi, verifyCodes, check, submitForApproval, completeCheck as completeCheckApi, approveOrder, rejectOrder, voidOrder } from '@/api/wms/checkOrder'
 import { getUserSelectList } from '@/api/common'
 import { parseScanContent } from '@/utils/scan'
 
@@ -257,6 +276,18 @@ const lossCount = computed(() => (form.value.details || []).filter(d => (d.profi
 const gainCount = computed(() => (form.value.details || []).filter(d => (d.profitAndLoss || 0) > 0).length)
 const equalCount = computed(() => (form.value.details || []).filter(d => (d.profitAndLoss || 0) === 0).length)
 
+// ===== 状态计算 =====
+const status = computed(() => Number(form.value.checkOrderStatus ?? 0))
+const isDraft = computed(() => status.value === 0)
+const isPendingCheck = computed(() => status.value === 1)
+const isPendingReview = computed(() => status.value === 2)
+const isCompleted = computed(() => status.value === 3)
+const isVoid = computed(() => status.value === -1)
+const isRejected = computed(() => status.value === -2)
+const canEdit = computed(() => isDraft.value || isRejected.value)
+const showApprovalControls = computed(() => (isDraft.value || isRejected.value) && !isViewMode.value)
+const showReviewerSelect = computed(() => isPendingCheck.value && !isViewMode.value)
+
 // ===== Picker 事件 =====
 const onWarehouseChange = (e) => {
   warehouseIndex.value = Number(e.detail.value)
@@ -273,8 +304,18 @@ const onRackChange = (e) => {
   rackIndex.value = Number(e.detail.value)
   form.value.rackId = rackPickerList.value[rackIndex.value]?.id
 }
-const onCheckerChange = (e) => { checkerIndex.value = Number(e.detail.value); form.value.checkerName = userList.value[checkerIndex.value]?.nickName }
-const onReviewerChange = (e) => { reviewerIndex.value = Number(e.detail.value); form.value.reviewerName = userList.value[reviewerIndex.value]?.nickName }
+const submitExecutorId = ref(undefined)
+const submitExecutorName = ref('')
+const onCheckerChange = (e) => {
+  checkerIndex.value = Number(e.detail.value)
+  const u = userList.value[checkerIndex.value]
+  if (u) { submitExecutorId.value = u.userId; submitExecutorName.value = u.nickName }
+}
+const onReviewerChange = (e) => {
+  reviewerIndex.value = Number(e.detail.value)
+  const u = userList.value[reviewerIndex.value]
+  if (u) { form.value.reviewerId = u.userId; form.value.reviewerName = u.nickName }
+}
 
 // ===== 名称查找 =====
 const getWarehouseName = (id) => wmsStore.warehouseMap?.get(id)?.warehouseName || '-'
@@ -289,10 +330,9 @@ const loadUserList = async () => {
   } catch (e) { userList.value = [] }
 }
 
-// ===== 新建提交 =====
+// ===== 新建保存草稿 =====
 const handleAdd = async () => {
   if (!form.value.warehouseId) return uni.showToast({ title: '请选择仓库', icon: 'none' })
-  if (!form.value.checkerName) return uni.showToast({ title: '请选择盘点人', icon: 'none' })
   saving.value = true
   try {
     const now = new Date()
@@ -300,9 +340,34 @@ const handleAdd = async () => {
     form.value.checkDate = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
     const checkScopeType = form.value.rackId ? 'rack' : (form.value.areaId ? 'area' : 'warehouse')
     await addCheckOrder({ ...form.value, checkScopeType, checkOrderStatus: 0 })
-    uni.showToast({ title: '提交成功', icon: 'success' })
+    uni.showToast({ title: '已保存草稿', icon: 'success' })
     setTimeout(() => uni.redirectTo({ url: '/pages/check/list' }), 1000)
   } catch (e) {} finally { saving.value = false }
+}
+
+// ===== 提交审批（草稿/已驳回 → 待盘点） =====
+const handleSubmitForApproval = async () => {
+  if (!submitExecutorId.value) return uni.showToast({ title: '请选择盘点人', icon: 'none' })
+  saving.value = true
+  try {
+    // 先保存基本信息
+    if (form.value.id) {
+      await updateCheckOrder({
+        id: form.value.id,
+        checkOrderNo: form.value.checkOrderNo,
+        warehouseId: form.value.warehouseId,
+        areaId: form.value.areaId,
+        rackId: form.value.rackId,
+        checkScopeType: form.value.checkScopeType,
+        remark: form.value.remark,
+      })
+    }
+    await submitForApproval(form.value.id, submitExecutorId.value, submitExecutorName.value)
+    uni.showToast({ title: '已提交，待盘点', icon: 'success' })
+    setTimeout(() => uni.redirectTo({ url: '/pages/check/list' }), 1000)
+  } catch (e) {
+    uni.showToast({ title: '提交失败', icon: 'none' })
+  } finally { saving.value = false }
 }
 
 // ===== 开始盘点 =====
@@ -475,7 +540,6 @@ const handleSaveDraft = async () => {
       areaId: form.value.areaId,
       rackId: form.value.rackId,
       checkScopeType: form.value.checkScopeType,
-      checkerName: form.value.checkerName,
       reviewerName: form.value.reviewerName,
       remark: form.value.remark,
       checkOrderTotal: form.value.checkOrderTotal || 0,
@@ -494,19 +558,7 @@ const handleVoid = async () => {
   if (!confirm) return
   saving.value = true
   try {
-    await updateCheckOrder({
-      id: form.value.id,
-      checkOrderNo: form.value.checkOrderNo,
-      warehouseId: form.value.warehouseId,
-      areaId: form.value.areaId,
-      rackId: form.value.rackId,
-      checkScopeType: form.value.checkScopeType,
-      checkerName: form.value.checkerName,
-      reviewerName: form.value.reviewerName,
-      remark: form.value.remark,
-      checkOrderTotal: form.value.checkOrderTotal || 0,
-      checkOrderStatus: -1,
-    })
+    await voidOrder(form.value.id)
     uni.showToast({ title: '已作废', icon: 'success' })
     setTimeout(() => uni.redirectTo({ url: '/pages/check/list' }), 1000)
   } catch (e) {
@@ -514,14 +566,17 @@ const handleVoid = async () => {
   } finally { saving.value = false }
 }
 
-// ===== 完成盘点 =====
+// ===== 完成盘点并提交复核（待盘点 → 待复核） =====
 const handleCompleteCheck = async () => {
   if (scannedCodes.value.length === 0) {
     return uni.showToast({ title: '尚未扫描任何器材', icon: 'none' })
   }
+  if (!form.value.reviewerId) {
+    return uni.showToast({ title: '请先选择复核人', icon: 'none' })
+  }
   const { confirm } = await uni.showModal({
     title: '确认完成',
-    content: `已匹配 ${matchedCount.value}/${totalInstanceCount.value}，盘盈 ${surplusItems.value.length} 个（总扫码 ${scannedCodes.value.length} 个）。确认盘点结束？`
+    content: `已匹配 ${matchedCount.value}/${totalInstanceCount.value}，盘盈 ${surplusItems.value.length} 个（总扫码 ${scannedCodes.value.length} 个）。确认提交复核？`
   })
   if (!confirm) return
 
@@ -531,7 +586,7 @@ const handleCompleteCheck = async () => {
     const pad = n => String(n).padStart(2, '0')
     const checkDate = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
 
-    await check({
+    await completeCheckApi({
       id: form.value.id,
       checkOrderNo: form.value.checkOrderNo,
       warehouseId: form.value.warehouseId,
@@ -539,16 +594,42 @@ const handleCompleteCheck = async () => {
       rackId: form.value.rackId,
       checkScopeType: form.value.checkScopeType,
       checkDate,
-      checkerName: form.value.checkerName,
-      reviewerName: form.value.reviewerName,
       remark: form.value.remark,
       scannedInstanceCodes: scannedCodes.value,
-    })
-    uni.showToast({ title: '盘点完成', icon: 'success' })
+    }, form.value.reviewerId, form.value.reviewerName)
+    uni.showToast({ title: '已提交复核', icon: 'success' })
     setTimeout(() => uni.redirectTo({ url: '/pages/check/list' }), 1000)
   } catch (e) {
-    uni.showToast({ title: '盘点失败', icon: 'none' })
+    uni.showToast({ title: '提交失败', icon: 'none' })
   } finally { completing.value = false }
+}
+
+// ===== 复核通过（待复核 → 已完成） =====
+const handleApprove = async () => {
+  const { confirm } = await uni.showModal({ title: '提示', content: '确认复核通过？' })
+  if (!confirm) return
+  completing.value = true
+  try {
+    await approveOrder(form.value.id, '')
+    uni.showToast({ title: '复核通过', icon: 'success' })
+    setTimeout(() => uni.redirectTo({ url: '/pages/check/list' }), 1000)
+  } catch (e) {
+    uni.showToast({ title: '复核失败', icon: 'none' })
+  } finally { completing.value = false }
+}
+
+// ===== 驳回 =====
+const handleReject = async () => {
+  const { confirm } = await uni.showModal({ title: '提示', content: '确认驳回？' })
+  if (!confirm) return
+  saving.value = true
+  try {
+    await rejectOrder(form.value.id, '')
+    uni.showToast({ title: '已驳回', icon: 'success' })
+    setTimeout(() => uni.redirectTo({ url: '/pages/check/list' }), 1000)
+  } catch (e) {
+    uni.showToast({ title: '驳回失败', icon: 'none' })
+  } finally { saving.value = false }
 }
 
 // ===== 加载详情 =====
@@ -569,7 +650,7 @@ const loadDetail = async (id) => {
     }
 
     // 查看模式：如果有盘点结果，展示差异
-    if (data.checkOrderStatus === 1 && data.details) {
+    if (Number(data.checkOrderStatus) === 1 && data.details) {
       form.value.details = data.details.map(it => ({
         ...it,
         checkQuantity: it.checkQuantity ?? it.quantity,
@@ -578,7 +659,7 @@ const loadDetail = async (id) => {
     }
 
     // 恢复已保存的扫码数据（暂存恢复）
-    if (data.checkOrderStatus === 0 && data.instances) {
+    if (Number(data.checkOrderStatus) === 0 && data.instances) {
       const savedScanned = data.instances.filter(i => i.resultType === 'scanned')
       if (savedScanned.length > 0) {
         scannedCodes.value = savedScanned.map(i => i.instanceCode)
@@ -700,4 +781,7 @@ onLoad((options) => {
 
 /* 底部栏 */
 .footer-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; padding: 20rpx 24rpx; padding-bottom: calc(20rpx + env(safe-area-inset-bottom)); display: flex; gap: 16rpx; border-top: 1rpx solid #eee; z-index: 100; box-shadow: 0 -2rpx 8rpx rgba(0,0,0,0.06); }
+
+/* 审批控件 */
+.approval-card { background: #f8faff; border-left: 6rpx solid #2979ff; }
 </style>

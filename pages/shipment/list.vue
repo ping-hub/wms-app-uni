@@ -43,10 +43,6 @@
             <text class="order-value">{{ getShipmentTypeLabel(item.shipmentOrderType) }}</text>
           </view>
           <view class="order-row">
-            <text class="order-label">仓库/库区</text>
-            <text class="order-value">{{ getWarehouseLabel(item.warehouseId, item.areaId) }}</text>
-          </view>
-          <view class="order-row">
             <text class="order-label">数量</text>
             <text class="order-value">{{ Math.floor(item.totalQuantity || 0) }}件</text>
           </view>
@@ -175,14 +171,6 @@ const getStatusTagClass = (status) => {
   if (s === '1') return 'tag-warning'
   if (s === '2') return 'tag-info'
   return 'tag-default'
-}
-
-const getWarehouseLabel = (warehouseId, areaId) => {
-  const wh = wmsStore.warehouseMap.get(warehouseId)
-  const area = wmsStore.areaMap.get(areaId)
-  let label = wh ? wh.warehouseName : '-'
-  if (area) label += ' / ' + area.areaName
-  return label
 }
 
 const getList = async (reset = false) => {

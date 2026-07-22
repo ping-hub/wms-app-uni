@@ -13,6 +13,8 @@
           <view class="info-row"><text class="info-label">规格型号</text><text class="info-value">{{ info.skuName || '-' }}</text></view>
           <view class="info-row"><text class="info-label">在箱状态</text><text class="info-value">{{ info.boxId ? '在箱' : '不在箱' }}</text></view>
           <view class="info-row"><text class="info-label">借出状态</text><text class="info-value">{{ info.instanceStatus === '借出' ? '已借出' : '未借出' }}</text></view>
+          <view class="info-row"><text class="info-label">质量等级</text><text class="info-value">{{ info.qualityGrade || '-' }}</text></view>
+          <view class="info-row"><text class="info-label">质保期</text><text class="info-value">{{ info.warrantyPeriod || '-' }}</text></view>
         </view>
 
         <!-- 位置信息 -->

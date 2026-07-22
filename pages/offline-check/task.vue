@@ -366,7 +366,7 @@ async function finishCheck() {
 // ── 生命周期 ─────────────────────────────────────────────────────────────────
 onLoad((options) => {
   if (options.id) {
-    initTask(Number(options.id) || options.id)
+    initTask(options.id)
   }
 })
 

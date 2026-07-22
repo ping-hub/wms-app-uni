@@ -13,22 +13,6 @@
           </picker>
         </view>
         <view class="form-item">
-          <text class="form-label required">仓库</text>
-          <picker :disabled="isViewMode" :range="warehousePickerList" range-key="warehouseName" @change="onWarehouseChange" :value="warehouseIndex">
-            <view class="picker-value" :class="{ placeholder: !form.warehouseId }">
-              {{ currentWarehouseName || '请选择仓库' }}
-            </view>
-          </picker>
-        </view>
-        <view class="form-item">
-          <text class="form-label required">库区</text>
-          <picker :range="areaPickerList" range-key="areaName" @change="onAreaChange" :value="areaIndex" :disabled="isViewMode || !form.warehouseId">
-            <view class="picker-value" :class="{ placeholder: !form.areaId }">
-              {{ currentAreaName || '请选择库区' }}
-            </view>
-          </picker>
-        </view>
-        <view class="form-item">
           <text class="form-label">出库日期</text>
           <picker :disabled="isViewMode" mode="date" @change="onShipmentDateChange" :value="form.shipmentDate">
             <view class="picker-value" :class="{ placeholder: !form.shipmentDate }">
@@ -63,6 +47,39 @@
         <view class="form-item">
           <text class="form-label">备注</text>
           <textarea :disabled="isViewMode" class="form-textarea" v-model="form.remark" placeholder="请输入备注" :maxlength="100"  placeholder-class="input-placeholder" />
+        </view>
+        <!-- 审批人（草稿/已驳回时可编辑） -->
+        <view class="form-item" v-if="canEdit">
+          <text class="form-label required">审批人</text>
+          <picker :range="userNickNames" @change="onApproverChange" :value="approverIndex">
+            <view class="picker-value" :class="{ placeholder: !form.approverId }">
+              {{ currentApproverName || '请选择审批人' }}
+            </view>
+          </picker>
+        </view>
+        <!-- 操作人（待审批阶段，当前用户是审批人时可指定） -->
+        <view class="form-item" v-if="!isViewMode && form.shipmentOrderStatus === 1 && isCurrentApprover">
+          <text class="form-label required">操作人</text>
+          <picker :range="userNickNames" @change="onExecutorChange" :value="executorIndex">
+            <view class="picker-value" :class="{ placeholder: !form.executorId }">
+              {{ currentExecutorName || '请指定操作人' }}
+            </view>
+          </picker>
+        </view>
+        <!-- 操作人（已审批/已出库，只读） -->
+        <view class="form-item" v-if="[2, 3].includes(Number(form.shipmentOrderStatus)) && form.executorId">
+          <text class="form-label">操作人</text>
+          <view class="picker-value" style="color: #333;">{{ getNickNameById(form.executorId) }}</view>
+        </view>
+        <!-- 驳回原因（已驳回状态） -->
+        <view class="form-item" v-if="Number(form.shipmentOrderStatus) === -2 && form.approveRemark">
+          <text class="form-label">驳回原因</text>
+          <view class="picker-value" style="color: #f56c6c;">{{ form.approveRemark }}</view>
+        </view>
+        <!-- 关联调拨单 -->
+        <view class="form-item" v-if="form.movementOrderId">
+          <text class="form-label">关联调拨单</text>
+          <view class="picker-value" style="color: #2979ff;" @click="goToMovementOrder">{{ form.basisNo || '查看调拨单' }}</view>
         </view>
       </view>
 
@@ -109,8 +126,10 @@
             <text class="detail-name">{{ detail.itemName || '-' }}</text>
             <text class="detail-sku text-secondary" v-if="detail.skuName">规格：{{ detail.skuName }}</text>
             <text class="detail-unit text-secondary" v-if="detail.unit">单位：{{ detail.unit }}</text>
+            <text class="detail-grade text-secondary" v-if="detail.qualityGrade">质量等级：{{ detail.qualityGrade }}</text>
+            <text class="detail-grade text-secondary" v-if="detail.warrantyPeriod">质保期：{{ detail.warrantyPeriod }}</text>
           </view>
-          <view class="detail-location" v-if="isViewMode">
+          <view class="detail-location">
             <view class="location-row">
               <text class="location-label">位置</text>
               <text class="location-value">{{ getFullLocation(detail) }}</text>
@@ -133,7 +152,7 @@
         <button class="btn-submit" @click="handleSubmitApproval">提交审批</button>
       </view>
     </view>
-    <view class="bottom-bar" v-else-if="!isViewMode && form.shipmentOrderStatus === 1 && String(form.approverId || '') === String(userStore.userId)">
+    <view class="bottom-bar" v-else-if="!isViewMode && form.shipmentOrderStatus === 1 && isCurrentApprover">
       <view class="summary-info">
         <text class="summary-text">待审批</text>
       </view>
@@ -225,13 +244,16 @@ const form = ref({
   remark: undefined,
   totalQuantity: 0,
   shipmentOrderStatus: 0,
-  warehouseId: undefined,
-  areaId: undefined,
+  approverId: undefined,
+  approverName: undefined,
+  executorId: undefined,
+  executorName: undefined,
+  approveRemark: undefined,
+  movementOrderId: undefined,
   details: []
 })
 
-// 库存明细缓存
-const inventoryDetailOptions = ref([])
+// 库存明细缓存（按仓库ID缓存）
 
 // 字典
 const shipmentTypeList = computed(() => wmsStore.dictMap['wms_shipment_type'] || [])
@@ -245,39 +267,65 @@ const shipmentTypeLabel = computed(() => {
   return item ? item.dictLabel : ''
 })
 
-// 仓库/库区
-const warehousePickerList = computed(() => wmsStore.warehouseList)
-const warehouseIndex = computed(() => warehousePickerList.value.findIndex(w => w.id === form.value.warehouseId))
-const currentWarehouseName = computed(() => wmsStore.warehouseMap.get(form.value.warehouseId)?.warehouseName || '')
-
-const areaPickerList = computed(() => {
-  if (!form.value.warehouseId) return []
-  return wmsStore.getAreasByWarehouseId(form.value.warehouseId)
-})
-const areaIndex = computed(() => areaPickerList.value.findIndex(a => a.id === form.value.areaId))
-const currentAreaName = computed(() => wmsStore.areaMap.get(form.value.areaId)?.areaName || '')
-
+// 位置展示
 const getFullLocation = (detail) => {
   const parts = []
-  if (currentWarehouseName.value) parts.push(currentWarehouseName.value)
-  if (currentAreaName.value) parts.push(currentAreaName.value)
+  const warehouseName = wmsStore.warehouseMap.get(detail.warehouseId)?.warehouseName
+  if (warehouseName) parts.push(warehouseName)
+  const areaName = detail.areaName || wmsStore.areaMap.get(detail.areaId)?.areaName
+  if (areaName) parts.push(areaName)
+  if (detail.rackName) parts.push(detail.rackName)
+  if (detail.locationName) parts.push(detail.locationName)
   return parts.join(' / ') || '-'
+}
+
+// 用户选择相关
+const userNickNames = computed(() => userList.value.map(u => u.nickName))
+const approverIndex = computed(() => {
+  if (!form.value.approverId) return -1
+  const idx = userList.value.findIndex(u => String(u.userId) === String(form.value.approverId))
+  return idx >= 0 ? idx : -1
+})
+const currentApproverName = computed(() => getNickNameById(form.value.approverId))
+const executorIndex = computed(() => {
+  if (!form.value.executorId) return -1
+  const idx = userList.value.findIndex(u => String(u.userId) === String(form.value.executorId))
+  return idx >= 0 ? idx : -1
+})
+const currentExecutorName = computed(() => getNickNameById(form.value.executorId))
+const isCurrentApprover = computed(() => {
+  if (!userStore.userId || !form.value.approverId) return false
+  return String(userStore.userId) === String(form.value.approverId)
+})
+const getNickNameById = (userId) => {
+  if (!userId) return ''
+  const u = userList.value.find(x => String(x.userId) === String(userId))
+  return u ? u.nickName : ''
+}
+const onApproverChange = (e) => {
+  const u = userList.value[e.detail.value]
+  if (u) {
+    form.value.approverId = u.userId
+    form.value.approverName = u.nickName
+  }
+}
+const onExecutorChange = (e) => {
+  const u = userList.value[e.detail.value]
+  if (u) {
+    form.value.executorId = u.userId
+    form.value.executorName = u.nickName
+  }
+}
+
+// 跳转关联调拨单
+const goToMovementOrder = () => {
+  if (!form.value.movementOrderId) return
+  uni.navigateTo({ url: '/pages/movement/edit?id=' + form.value.movementOrderId + '&mode=view' })
 }
 
 // Picker 事件
 const onShipmentTypeChange = (e) => {
   form.value.shipmentOrderType = shipmentTypeList.value[e.detail.value]?.dictValue
-}
-
-const onWarehouseChange = (e) => {
-  form.value.warehouseId = warehousePickerList.value[e.detail.value]?.id
-  form.value.areaId = undefined
-  form.value.details = []
-}
-
-const onAreaChange = (e) => {
-  form.value.areaId = areaPickerList.value[e.detail.value]?.id
-  form.value.details = []
 }
 
 const onShipmentDateChange = (e) => {
@@ -292,9 +340,6 @@ const onPurchaseDateChange = (e) => {
 
 // ===== 扫码 =====
 const handleScan = async () => {
-  if (!form.value.warehouseId || !form.value.areaId) {
-    return uni.showToast({ title: '请先选择仓库和库区', icon: 'none' })
-  }
   try {
     const res = await uni.scanCode({
       scanType: ['qrCode', 'barCode'],
@@ -350,9 +395,6 @@ const handleScan = async () => {
 const continuousScanning = ref(false)
 
 const handleContinuousScan = async () => {
-  if (!form.value.warehouseId || !form.value.areaId) {
-    return uni.showToast({ title: '请先选择仓库和库区', icon: 'none' })
-  }
   continuousScanning.value = true
   doContinuousScan()
 }
@@ -443,26 +485,24 @@ const addInstanceByCode = async (instanceCode) => {
   }
 }
 
-const refreshInventoryOptions = async () => {
-  if (!form.value.warehouseId) {
-    inventoryDetailOptions.value = []
-    return
-  }
+const inventoryDetailCache = new Map()
+
+const refreshInventoryOptions = async (warehouseId) => {
+  if (!warehouseId) return
+  if (inventoryDetailCache.has(warehouseId)) return
   try {
-    const res = await listInventoryDetailNoPage({
-      warehouseId: form.value.warehouseId,
-      areaId: form.value.areaId
-    })
-    inventoryDetailOptions.value = res.data || []
+    const res = await listInventoryDetailNoPage({ warehouseId })
+    inventoryDetailCache.set(warehouseId, res.data || [])
   } catch (e) {
-    inventoryDetailOptions.value = []
+    inventoryDetailCache.set(warehouseId, [])
   }
 }
 
 const matchInventoryDetail = (source, extraUsage = {}) => {
-  const candidates = inventoryDetailOptions.value.filter(it => {
+  const list = inventoryDetailCache.get(source.warehouseId) || []
+  const candidates = list.filter(it => {
     return it.skuId === source.skuId
-      && it.warehouseId === form.value.warehouseId
+      && it.warehouseId === source.warehouseId
       && (!source.areaId || it.areaId === source.areaId)
   })
   return candidates.find(it => {
@@ -477,14 +517,14 @@ const matchInventoryDetail = (source, extraUsage = {}) => {
 
 const addItemInstancesToShipment = async (items) => {
   if (!items?.length) return
-  await refreshInventoryOptions()
   const extraUsage = {}
   const newRows = []
   for (const item of items) {
     if (form.value.details.some(d => d.itemInstanceId === item.id)) {
       throw new Error('器材实例编码 ' + item.instanceCode + ' 已添加')
     }
-    const matched = matchInventoryDetail({ skuId: item.skuId, areaId: item.areaId, quantity: 1 }, extraUsage)
+    await refreshInventoryOptions(item.warehouseId)
+    const matched = matchInventoryDetail({ skuId: item.skuId, warehouseId: item.warehouseId, areaId: item.areaId, quantity: 1 }, extraUsage)
     if (!matched) {
       throw new Error('器材实例编码 ' + item.instanceCode + ' 未匹配到可用库存明细')
     }
@@ -502,7 +542,7 @@ const addItemInstancesToShipment = async (items) => {
       qualityGrade: item.qualityGrade,
       quantity: 1,
       remainQuantity: matched.remainQuantity,
-      warehouseId: form.value.warehouseId,
+      warehouseId: item.warehouseId,
       areaId: item.areaId,
       inventoryDetailId: matched.id,
       areaName: wmsStore.areaMap.get(item.areaId)?.areaName || '',
@@ -519,9 +559,6 @@ const addItemInstancesToShipment = async (items) => {
 
 // ===== 手动选择 =====
 const openItemPicker = () => {
-  if (!form.value.warehouseId || !form.value.areaId) {
-    return uni.showToast({ title: '请先选择仓库和库区', icon: 'none' })
-  }
   showItemPicker.value = true
   getInstanceList()
 }
@@ -546,7 +583,7 @@ const searchInstances = () => {
 const getInstanceList = async () => {
   instanceLoading.value = true
   try {
-    const params = { ...instanceQuery.value, warehouseId: form.value.warehouseId, areaId: form.value.areaId }
+    const params = { ...instanceQuery.value, warehouseId: undefined }
     const res = await listItemInstance(params)
     instanceList.value = res.rows || []
   } catch (e) {
@@ -603,6 +640,7 @@ const loadUserList = async () => {
 const handleSubmitApproval = async () => {
   if (!validate()) return
   if (!form.value.details.length) return uni.showToast({ title: '请添加出库明细', icon: 'none' })
+  if (!form.value.approverId) return uni.showToast({ title: '请选择审批人', icon: 'none' })
   // 先暂存
   const params = buildSubmitParams(0)
   let savedId = form.value.id
@@ -610,33 +648,17 @@ const handleSubmitApproval = async () => {
     if (params.id) { await updateShipmentOrder(params) }
     else { const res = await addShipmentOrder(params); savedId = res.data }
   } catch (e) { return }
-  // 选择审批人
-  const names = userList.value.map(u => u.nickName)
-  const { cancel, value } = await uni.showActionSheet({ itemList: names })
-  if (cancel) { uni.showToast({ title: '已暂存', icon: 'success' }); setTimeout(() => goBack(), 1000); return }
-  const selected = userList.value[value]
   try {
-    await submitForApproval(savedId, selected.userId, selected.nickName)
+    await submitForApproval(savedId, form.value.approverId, form.value.approverName)
     uni.showToast({ title: '已提交审批', icon: 'success' })
     setTimeout(() => goBack(), 1000)
   } catch (e) {}
 }
 
 const handleApprove = async () => {
-  // 选择操作人（executor）
-  if (!userList.value.length) await loadUserList()
-  const names = userList.value.map(u => u.nickName)
-  const { cancel, value } = await uni.showActionSheet({ itemList: names })
-  if (cancel) return
-  const executor = userList.value[value]
-  if (!executor) return uni.showToast({ title: '请选择操作人', icon: 'none' })
-  // 不能指定自己为操作人（可选校验）
-  if (String(executor.userId) === String(userStore.userId)) {
-    const { confirm: selfConfirm } = await uni.showModal({ title: '提示', content: '操作人与审批人为同一人，是否继续？' })
-    if (!selfConfirm) return
-  }
+  if (!form.value.executorId) return uni.showToast({ title: '请先指定操作人', icon: 'none' })
   try {
-    await approveOrder(form.value.id, '', executor.userId, executor.nickName)
+    await approveOrder(form.value.id, '', form.value.executorId, form.value.executorName)
     uni.showToast({ title: '审批通过', icon: 'success' })
     setTimeout(() => goBack(), 1000)
   } catch (e) {}
@@ -677,8 +699,11 @@ const buildSubmitDetails = () => {
     quantity: 1,
     inventoryDetailId: it.inventoryDetailId,
     itemInstanceId: it.itemInstanceId,
-    warehouseId: it.warehouseId || form.value.warehouseId,
-    areaId: it.areaId || form.value.areaId,
+    instanceCode: it.instanceCode,
+    warehouseId: it.warehouseId,
+    areaId: it.areaId,
+    rackId: it.rackId,
+    locationId: it.locationId,
     remark: it.remark
   }))
 }
@@ -697,22 +722,14 @@ const buildSubmitParams = (shipmentOrderStatus) => ({
   receivableAmount: form.value.receivableAmount,
   remark: form.value.remark,
   totalQuantity: form.value.totalQuantity,
-  warehouseId: form.value.warehouseId,
-  areaId: form.value.areaId,
+  approverId: form.value.approverId,
+  approverName: form.value.approverName,
   details: buildSubmitDetails()
 })
 
 const validate = () => {
   if (!form.value.shipmentOrderType) {
     uni.showToast({ title: '请选择出库类型', icon: 'none' })
-    return false
-  }
-  if (!form.value.warehouseId) {
-    uni.showToast({ title: '请选择仓库', icon: 'none' })
-    return false
-  }
-  if (!form.value.areaId) {
-    uni.showToast({ title: '请选择库区', icon: 'none' })
     return false
   }
   return true
@@ -760,7 +777,7 @@ const loadDetail = async (id) => {
       details: (data.details || []).map(it => ({
         ...it,
         itemInstanceId: it.itemInstanceId,
-        instanceCode: it.instanceCode || '',
+        instanceCode: it.instanceCode || it.itemInstanceId || '',
         itemName: it.itemName || '',
         itemCode: it.itemCode || '',
         skuName: it.skuName || '',
@@ -934,7 +951,7 @@ onMounted(async () => {
   color: #333333;
 }
 
-.detail-sku, .detail-unit {
+.detail-sku, .detail-unit, .detail-grade {
   display: block;
   font-size: 24rpx;
   margin-top: 4rpx;

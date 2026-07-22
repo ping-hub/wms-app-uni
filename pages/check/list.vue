@@ -30,9 +30,9 @@
             <text class="order-label">盈亏数</text>
             <text class="order-value">{{ Math.floor(item.checkOrderTotal || 0) }}</text>
           </view>
-          <view class="order-row" v-if="item.checkerName">
+          <view class="order-row" v-if="item.executorName">
             <text class="order-label">盘点人</text>
-            <text class="order-value">{{ item.checkerName }}</text>
+            <text class="order-value">{{ item.executorName }}</text>
           </view>
           <view class="order-row" v-if="item.reviewerName">
             <text class="order-label">复核人</text>
@@ -41,11 +41,23 @@
         </view>
         <view class="order-footer flex-between">
           <text class="text-secondary">{{ item.createBy }} · {{ formatTime(item.createTime) }}</text>
-          <view class="order-actions" v-if="item.checkOrderStatus === 0 && item.checkerName === userStore.nickName">
-            <text class="action-btn action-edit" @click.stop="goEdit(item)">去盘点</text>
+          <!-- 草稿/已驳回：提交、删除、查看 -->
+          <view class="order-actions" v-if="[0, -2].includes(Number(item.checkOrderStatus))">
+            <text class="action-btn action-edit" @click.stop="goEdit(item)">提交</text>
             <text class="action-btn action-delete" @click.stop="handleDelete(item)">删除</text>
             <text class="action-btn action-view" @click.stop="goView(item)">查看</text>
           </view>
+          <!-- 待盘点：去盘点、查看 -->
+          <view class="order-actions" v-else-if="Number(item.checkOrderStatus) === 1">
+            <text class="action-btn action-edit" @click.stop="goEdit(item)">去盘点</text>
+            <text class="action-btn action-view" @click.stop="goView(item)">查看</text>
+          </view>
+          <!-- 待复核：复核、查看 -->
+          <view class="order-actions" v-else-if="Number(item.checkOrderStatus) === 2">
+            <text class="action-btn action-edit" @click.stop="goEdit(item)">复核</text>
+            <text class="action-btn action-view" @click.stop="goView(item)">查看</text>
+          </view>
+          <!-- 已完成/已作废：仅查看 -->
           <view class="order-actions" v-else>
             <text class="action-btn action-view" @click.stop="goView(item)">查看</text>
           </view>
@@ -94,15 +106,18 @@ const showFilter = ref(false)
 
 const statusTabs = [
   { label: '全部', value: '' },
-  { label: '待盘库', value: '0' },
-  { label: '已盘库', value: '1' },
-  { label: '作废', value: '-1' }
+  { label: '草稿', value: '0' },
+  { label: '待盘点', value: '1' },
+  { label: '待复核', value: '2' },
+  { label: '已完成', value: '3' },
+  { label: '已驳回', value: '-2' },
+  { label: '已作废', value: '-1' }
 ]
 const currentStatus = ref('')
 const queryParams = ref({ pageNum: 1, pageSize: 10, checkOrderNo: undefined, checkOrderStatus: undefined, warehouseId: undefined })
 
 const getStatusLabel = (status) => wmsStore.getDictLabel('wms_check_status', status)
-const getStatusTagClass = (status) => { const s = String(status); if (s === '1') return 'tag-success'; if (s === '-1') return 'tag-danger'; return 'tag-warning' }
+const getStatusTagClass = (status) => { const s = String(status); if (s === '3') return 'tag-success'; if (['-1', '-2'].includes(s)) return 'tag-danger'; if (s === '0') return 'tag-info'; return 'tag-warning' }
 
 const getScopeLabel = (item) => {
   const type = wmsStore.getDictLabel('wms_check_scope_type', item.checkScopeType)

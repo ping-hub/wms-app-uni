@@ -47,7 +47,7 @@
           </view>
           <view class="task-row">
             <text class="task-label">盘点人</text>
-            <text class="task-value">{{ item.checkerName || '-' }}</text>
+            <text class="task-value">{{ item.executorName || '-' }}</text>
           </view>
           <view class="task-row">
             <text class="task-label">创建时间</text>
@@ -168,9 +168,9 @@ function switchTab(tab) {
 async function loadServerList() {
   serverLoading.value = true
   try {
-    // 只查 status=0（待盘库）的盘点单
-    const res = await listCheckOrder({ pageNum: 1, pageSize: 50, checkOrderStatus: '0' })
-    serverList.value = (res.rows || []).filter(r => r.checkerName) // 必须有盘点人才能离线盘
+    // 只查 status=1（待盘点）的盘点单，即已提交且已startCheck的
+    const res = await listCheckOrder({ pageNum: 1, pageSize: 50, checkOrderStatus: '1' })
+    serverList.value = (res.rows || []).filter(r => r.executorName) // 必须有盘点人才能离线盘
   } catch (e) {
     console.error('loadServerList error', e)
   } finally {

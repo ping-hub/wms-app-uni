@@ -108,10 +108,25 @@
             <text class="detail-name">{{ detail.itemName || '-' }}</text>
             <text class="detail-sku text-secondary" v-if="detail.skuName">规格：{{ detail.skuName }}</text>
             <text class="detail-unit text-secondary" v-if="detail.unit">单位：{{ detail.unit }}</text>
-            <text class="detail-grade text-secondary" v-if="detail.qualityGrade">等级：{{ detail.qualityGrade }}</text>
           </view>
-          <!-- 货架/货位选择 -->
+          <!-- 货架/货位/质量等级/质保期/箱码 -->
           <view class="detail-location" v-if="!isViewMode">
+            <view class="location-row">
+              <text class="location-label">质量等级</text>
+              <picker :range="qualityGradeList" range-key="dictLabel" @change="(e) => onQualityGradeChange(detail, e)" :value="getQualityGradeIndex(detail.qualityGrade)">
+                <view class="picker-value picker-small" :class="{ placeholder: !detail.qualityGrade }">
+                  {{ getQualityGradeLabel(detail.qualityGrade) || '选择质量等级' }}
+                </view>
+              </picker>
+            </view>
+            <view class="location-row">
+              <text class="location-label">质保期</text>
+              <picker mode="date" @change="(e) => onWarrantyPeriodChange(detail, e)" :value="detail.warrantyPeriod">
+                <view class="picker-value picker-small" :class="{ placeholder: !detail.warrantyPeriod }">
+                  {{ detail.warrantyPeriod || '选择质保期' }}
+                </view>
+              </picker>
+            </view>
             <view class="location-row">
               <text class="location-label">货架</text>
               <picker :disabled="isViewMode" :range="getRackOptions(detail)" range-key="rackName" @change="(e) => onRackChange(detail, e)">
@@ -137,6 +152,14 @@
             <view class="location-row">
               <text class="location-label">位置</text>
               <text class="location-value">{{ getFullLocation(detail) }}</text>
+            </view>
+            <view class="location-row" v-if="detail.qualityGrade">
+              <text class="location-label">质量等级</text>
+              <text class="location-value">{{ detail.qualityGrade }}</text>
+            </view>
+            <view class="location-row" v-if="detail.warrantyPeriod">
+              <text class="location-label">质保期</text>
+              <text class="location-value">{{ detail.warrantyPeriod }}</text>
             </view>
           </view>
 
@@ -315,6 +338,25 @@ const receiptTypeLabel = computed(() => {
   const item = receiptTypeList.value.find(d => d.dictValue === form.value.receiptOrderType)
   return item ? item.dictLabel : ''
 })
+
+// 质量等级字典
+const qualityGradeList = computed(() => wmsStore.dictMap['wms_quality_grade'] || [])
+const getQualityGradeIndex = (value) => {
+  if (!value) return -1
+  const idx = qualityGradeList.value.findIndex(d => d.dictValue === value)
+  return idx >= 0 ? idx : -1
+}
+const getQualityGradeLabel = (value) => {
+  if (!value) return ''
+  const item = qualityGradeList.value.find(d => d.dictValue === value)
+  return item ? item.dictLabel : value
+}
+const onQualityGradeChange = (detail, e) => {
+  detail.qualityGrade = qualityGradeList.value[e.detail.value]?.dictValue
+}
+const onWarrantyPeriodChange = (detail, e) => {
+  detail.warrantyPeriod = e.detail.value
+}
 
 
 // 仓库/库区选择
@@ -695,6 +737,7 @@ const addInstanceFromScanData = (parsed) => {
     unit: parsed.unit || '',
     productIdentifier: undefined,
     qualityGrade: parsed.qualityGrade || '',
+    warrantyPeriod: '',
     quantity: 1,
     warehouseId: form.value.warehouseId,
     areaId: form.value.areaId,
@@ -750,6 +793,7 @@ const createDetailFromInstance = (item) => ({
   unit: item.unit,
   productIdentifier: item.productIdentifier,
   qualityGrade: item.qualityGrade,
+  warrantyPeriod: item.warrantyPeriod || '',
   quantity: 1,
   warehouseId: form.value.warehouseId,
   areaId: form.value.areaId,
@@ -871,6 +915,7 @@ const buildSubmitDetails = () => {
     unit: it.unit,
     productIdentifier: it.productIdentifier,
     qualityGrade: it.qualityGrade,
+    warrantyPeriod: it.warrantyPeriod,
     unitPrice: it.unitPrice,
     lineAmount: it.lineAmount,
     boxCode: it.boxCode,
@@ -987,6 +1032,7 @@ const loadDetail = async (id) => {
         unit: it.unit || it.itemSku?.item?.unit,
         productIdentifier: it.productIdentifier || it.itemSku?.productIdentifier,
         qualityGrade: it.qualityGrade || it.itemSku?.qualityGrade,
+        warrantyPeriod: it.warrantyPeriod || '',
         itemInstanceId: it.itemInstanceId || it.receiptItemInstances?.[0]?.id,
         instanceCode: it.instanceCode || it.receiptItemInstances?.[0]?.instanceCode || '',
         boxCode: it.boxCode || it.receiptItemInstances?.[0]?.boxCode || '',
@@ -1018,6 +1064,7 @@ onMounted(async () => {
   // 加载字典
   await Promise.all([
     wmsStore.getDict('wms_receipt_type'),
+    wmsStore.getDict('wms_quality_grade'),
     wmsStore.loadWarehouses(),
     wmsStore.loadAreas()
   ])
@@ -1121,6 +1168,7 @@ onMounted(async () => {
   height: 64rpx;
   line-height: 64rpx;
   font-size: 26rpx;
+  background: #ffffff;
 }
 
 /* 明细区域 */
@@ -1229,8 +1277,12 @@ onMounted(async () => {
   gap: 12rpx;
 }
 
+.location-row picker {
+  flex: 1;
+}
+
 .location-label {
-  width: 80rpx;
+  width: 120rpx;
   flex-shrink: 0;
   font-size: 24rpx;
   color: #999999;
@@ -1245,7 +1297,7 @@ onMounted(async () => {
 .location-input {
   flex: 1;
   height: 60rpx;
-  background: #f5f6fa;
+  background: #ffffff;
   border-radius: 8rpx;
   padding: 0 16rpx;
   font-size: 26rpx;
