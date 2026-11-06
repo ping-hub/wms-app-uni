@@ -40,49 +40,26 @@
         <text class="text-secondary">暂无入库单</text>
       </view>
 
-      <view
-        v-for="item in list"
-        :key="item.id"
-        class="order-card card"
-        @click="goDetail(item)"
-      >
-        <view class="order-header flex-between">
-          <text class="order-no">{{ item.receiptOrderNo || '待生成' }}</text>
-          <text :class="['tag', getStatusTagClass(item.receiptOrderStatus)]">
-            {{ getStatusLabel(item.receiptOrderStatus) }}
-          </text>
-        </view>
-        <view class="order-body">
-          <view class="order-row">
-            <text class="order-label">入库类型</text>
-            <text class="order-value">{{ getReceiptTypeLabel(item.receiptOrderType) }}</text>
+      <view v-for="item in list" :key="item.id" class="swipe-wrapper">
+        <view
+          class="swipe-content"
+          :class="{ 'swipe-open': openId === item.id }"
+          @touchstart="onTouchStart"
+          @touchmove="onTouchMove($event, item)"
+          @touchend="onTouchEnd(item)"
+          @click="goDetail(item)"
+        >
+          <view class="order-header">
+            <text class="order-no">{{ item.receiptOrderNo || '待生成' }}</text>
+            <text :class="['tag', getStatusTagClass(item.receiptOrderStatus)]">{{ getStatusLabel(item.receiptOrderStatus) }}</text>
           </view>
-          <view class="order-row">
-            <text class="order-label">仓库/库区</text>
-            <text class="order-value">{{ getWarehouseLabel(item.warehouseId, item.areaId) }}</text>
-          </view>
-          <view class="order-row" v-if="item.basisNo">
-            <text class="order-label">调拨根据</text>
-            <text class="order-value">{{ item.basisNo }}</text>
-          </view>
-          <view class="order-row" v-if="item.receiveUnit">
-            <text class="order-label">收物单位</text>
-            <text class="order-value">{{ item.receiveUnit }}</text>
-          </view>
-          <view class="order-row">
-            <text class="order-label">数量</text>
-            <text class="order-value">{{ Math.floor(item.totalQuantity || 0) }}件</text>
+          <view class="order-tags">
+            <text class="tag tag-plain">{{ getReceiptTypeLabel(item.receiptOrderType) }}</text>
+            <text class="tag tag-plain area-tag">{{ getAreaLabel(item.areaId) }}</text>
           </view>
         </view>
-        <view class="order-footer flex-between">
-          <text class="text-secondary">{{ item.createBy }} · {{ formatTime(item.createTime) }}</text>
-          <view class="order-actions" v-if="item.receiptOrderStatus === 0">
-            <text class="action-btn action-edit" @click.stop="goDetail(item)">查看</text>
-            <text class="action-btn action-delete" @click.stop="handleDelete(item)">删除</text>
-          </view>
-          <view class="order-actions" v-else>
-            <text class="action-btn action-edit" @click.stop="goDetail(item)">查看</text>
-          </view>
+        <view class="swipe-action-delete" v-if="item.receiptOrderStatus === 0" @click="handleDelete(item)">
+          <text>删除</text>
         </view>
       </view>
 
@@ -133,8 +110,10 @@ import { ref, computed, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { listReceiptOrder, delReceiptOrder } from '@/api/wms/receiptOrder'
 import { useWmsStore } from '@/store/wms'
+import { useSwipe } from '@/utils/swipe'
 
 const wmsStore = useWmsStore()
+const { openId, onTouchStart, onTouchMove, onTouchEnd } = useSwipe()
 
 const list = ref([])
 const loading = ref(false)
@@ -191,6 +170,11 @@ const getWarehouseLabel = (warehouseId, areaId) => {
   let label = wh ? wh.warehouseName : '-'
   if (area) label += ' / ' + area.areaName
   return label
+}
+
+const getAreaLabel = (areaId) => {
+  const area = wmsStore.areaMap.get(areaId)
+  return area ? area.areaName : '-'
 }
 
 const formatTime = (time) => {
@@ -294,6 +278,10 @@ const goEdit = (row) => {
 }
 
 const goDetail = (row) => {
+  if (openId.value === row.id) {
+    openId.value = null
+    return
+  }
   if (row.receiptOrderStatus === 0) {
     goEdit(row)
   } else {
@@ -379,66 +367,77 @@ onShow(() => {
   padding: 16rpx;
 }
 
-.order-card {
-  padding: 24rpx;
+.swipe-wrapper {
+  position: relative;
   margin-bottom: 16rpx;
+  overflow: hidden;
+  border-radius: 16rpx;
+}
+
+.swipe-content {
+  position: relative;
+  z-index: 1;
+  padding: 20rpx 24rpx;
+  background: #ffffff;
+  border-radius: 16rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+  transition: transform 0.2s ease;
+}
+
+.swipe-open {
+  transform: translateX(-140rpx);
 }
 
 .order-header {
-  margin-bottom: 16rpx;
-  padding-bottom: 12rpx;
-  border-bottom: 1rpx solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
 }
 
 .order-no {
   font-size: 30rpx;
   font-weight: 600;
   color: #333333;
-}
-
-.order-body {
-  margin-bottom: 12rpx;
-}
-
-.order-row {
-  display: flex;
-  justify-content: space-between;
-  padding: 6rpx 0;
-}
-
-.order-label {
-  color: #999999;
-  font-size: 24rpx;
-}
-
-.order-value {
-  color: #333333;
-  font-size: 24rpx;
-  text-align: right;
-  max-width: 60%;
+  flex-shrink: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.order-footer {
-  padding-top: 12rpx;
-  border-top: 1rpx solid #f0f0f0;
-}
-
-.order-actions {
+.order-tags {
   display: flex;
-  gap: 20rpx;
+  align-items: center;
+  gap: 12rpx;
+  margin-top: 12rpx;
+  overflow: hidden;
 }
 
-.action-btn {
-  font-size: 26rpx;
-  padding: 4rpx 16rpx;
+.tag-plain {
+  background: #f0f2f5;
+  color: #666666;
 }
 
-.action-edit { color: #2979ff; }
-.action-delete { color: #e43d33; }
-.action-view { color: #2979ff; }
+.area-tag {
+  max-width: 200rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.swipe-action-delete {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 140rpx;
+  background: #e43d33;
+  color: #ffffff;
+  font-size: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
 .empty-tip {
   text-align: center;

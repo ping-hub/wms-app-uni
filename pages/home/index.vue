@@ -16,30 +16,30 @@
           </view>
           <view class="header-actions">
             <view class="icon-btn" @click="handleLogout">
-              <text class="icon-btn-text">⏻</text>
+              <image class="icon-btn-img" src="/static/icons/logout.svg" mode="aspectFit" />
             </view>
           </view>
         </view>
         <!-- 快捷扫码入口 -->
         <view class="quick-bar">
           <view class="quick-item" @click="goTo('/pages/receipt/list')">
-            <text class="quick-icon">📥</text>
+            <image class="quick-icon" src="/static/icons/receipt.svg" mode="aspectFit" />
             <text class="quick-label">入库</text>
           </view>
           <view class="quick-item" @click="goTo('/pages/shipment/list')">
-            <text class="quick-icon">📤</text>
+            <image class="quick-icon" src="/static/icons/shipment.svg" mode="aspectFit" />
             <text class="quick-label">出库</text>
           </view>
           <view class="quick-item" @click="goTo('/pages/check/list')">
-            <text class="quick-icon">📋</text>
+            <image class="quick-icon" src="/static/icons/check.svg" mode="aspectFit" />
             <text class="quick-label">盘点</text>
           </view>
           <view class="quick-item" @click="goTo('/pages/scan/index')">
-            <text class="quick-icon">🔍</text>
+            <image class="quick-icon" src="/static/icons/search.svg" mode="aspectFit" />
             <text class="quick-label">查找</text>
           </view>
           <view class="quick-item" @click="goTo('/pages/instance/list')">
-            <text class="quick-icon">📦</text>
+            <image class="quick-icon" src="/static/icons/instance.svg" mode="aspectFit" />
             <text class="quick-label">库存</text>
           </view>
         </view>
@@ -56,7 +56,7 @@
         <view class="func-grid">
           <view class="func-card" @click="goTo('/pages/receipt/list')">
             <view class="func-card-icon func-icon-receipt">
-              <text class="icon-text">📥</text>
+              <image class="icon-img" src="/static/icons/receipt.svg" mode="aspectFit" />
             </view>
             <view class="func-card-info">
               <text class="func-card-label">入库管理</text>
@@ -66,7 +66,7 @@
           </view>
           <view class="func-card" @click="goTo('/pages/shipment/list')">
             <view class="func-card-icon func-icon-shipment">
-              <text class="icon-text">📤</text>
+              <image class="icon-img" src="/static/icons/shipment.svg" mode="aspectFit" />
             </view>
             <view class="func-card-info">
               <text class="func-card-label">出库管理</text>
@@ -76,7 +76,7 @@
           </view>
           <view class="func-card" @click="goTo('/pages/check/list')">
             <view class="func-card-icon func-icon-check">
-              <text class="icon-text">📋</text>
+              <image class="icon-img" src="/static/icons/check.svg" mode="aspectFit" />
             </view>
             <view class="func-card-info">
               <text class="func-card-label">盘点管理</text>
@@ -86,7 +86,7 @@
           </view>
           <view class="func-card" @click="goTo('/pages/offline-check/index')">
             <view class="func-card-icon func-icon-offline">
-              <text class="icon-text">📡</text>
+              <image class="icon-img" src="/static/icons/offline.svg" mode="aspectFit" />
             </view>
             <view class="func-card-info">
               <text class="func-card-label">离线盘点</text>
@@ -105,7 +105,7 @@
         <view class="func-grid">
           <view class="func-card" @click="goTo('/pages/instance/list')">
             <view class="func-card-icon func-icon-instance">
-              <text class="icon-text">📦</text>
+              <image class="icon-img" src="/static/icons/instance.svg" mode="aspectFit" />
             </view>
             <view class="func-card-info">
               <text class="func-card-label">库存明细</text>
@@ -115,7 +115,7 @@
           </view>
           <view class="func-card" @click="goTo('/pages/scan/index')">
             <view class="func-card-icon func-icon-scan">
-              <text class="icon-text">🔍</text>
+              <image class="icon-img" src="/static/icons/scan.svg" mode="aspectFit" />
             </view>
             <view class="func-card-info">
               <text class="func-card-label">扫码查找</text>
@@ -267,6 +267,11 @@ const handleLogout = async () => {
   color: #ffffff;
 }
 
+.icon-btn-img {
+  width: 40rpx;
+  height: 40rpx;
+}
+
 .quick-bar {
   display: flex;
   background: #ffffff;
@@ -299,7 +304,8 @@ const handleLogout = async () => {
 }
 
 .quick-icon {
-  font-size: 44rpx;
+  width: 44rpx;
+  height: 44rpx;
 }
 
 .quick-label {
@@ -365,6 +371,11 @@ const handleLogout = async () => {
 
 .icon-text {
   font-size: 40rpx;
+}
+
+.icon-img {
+  width: 44rpx;
+  height: 44rpx;
 }
 
 .func-card-info {

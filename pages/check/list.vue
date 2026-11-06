@@ -16,51 +16,26 @@
     <scroll-view class="order-list" scroll-y refresher-enabled :refresher-triggered="refreshing" @refresherrefresh="onRefresh" @scrolltolower="onLoadMore">
       <view v-if="!list.length && !loading" class="empty-tip"><text class="text-secondary">暂无盘点单</text></view>
 
-      <view v-for="item in list" :key="item.id" class="order-card card" @click="goView(item)">
-        <view class="order-header flex-between">
-          <text class="order-no">{{ item.checkOrderNo || '待生成' }}</text>
-          <text :class="['tag', getStatusTagClass(item.checkOrderStatus)]">{{ getStatusLabel(item.checkOrderStatus) }}</text>
-        </view>
-        <view class="order-body">
-          <view class="order-row">
-            <text class="order-label">盘点范围</text>
-            <text class="order-value">{{ getScopeLabel(item) }}</text>
+      <view v-for="item in list" :key="item.id" class="swipe-wrapper">
+        <view
+          class="swipe-content"
+          :class="{ 'swipe-open': openId === item.id }"
+          @touchstart="onTouchStart"
+          @touchmove="onTouchMove($event, item)"
+          @touchend="onTouchEnd(item)"
+          @click="goSmart(item)"
+        >
+          <view class="order-header">
+            <text class="order-no">{{ item.checkOrderNo || '待生成' }}</text>
+            <text :class="['tag', getStatusTagClass(item.checkOrderStatus)]">{{ getStatusLabel(item.checkOrderStatus) }}</text>
           </view>
-          <view class="order-row">
-            <text class="order-label">盈亏数</text>
-            <text class="order-value">{{ Math.floor(item.checkOrderTotal || 0) }}</text>
-          </view>
-          <view class="order-row" v-if="item.executorName">
-            <text class="order-label">盘点人</text>
-            <text class="order-value">{{ item.executorName }}</text>
-          </view>
-          <view class="order-row" v-if="item.reviewerName">
-            <text class="order-label">复核人</text>
-            <text class="order-value">{{ item.reviewerName }}</text>
+          <view class="order-tags">
+            <text class="tag tag-plain area-tag">{{ getScopeName(item) }}</text>
+            <text class="tag tag-plain">{{ Math.floor(item.checkOrderTotal || 0) }}</text>
           </view>
         </view>
-        <view class="order-footer flex-between">
-          <text class="text-secondary">{{ item.createBy }} · {{ formatTime(item.createTime) }}</text>
-          <!-- 草稿/已驳回：提交、删除、查看 -->
-          <view class="order-actions" v-if="[0, -2].includes(Number(item.checkOrderStatus))">
-            <text class="action-btn action-edit" @click.stop="goEdit(item)">提交</text>
-            <text class="action-btn action-delete" @click.stop="handleDelete(item)">删除</text>
-            <text class="action-btn action-view" @click.stop="goView(item)">查看</text>
-          </view>
-          <!-- 待盘点：去盘点、查看 -->
-          <view class="order-actions" v-else-if="Number(item.checkOrderStatus) === 1">
-            <text class="action-btn action-edit" @click.stop="goEdit(item)">去盘点</text>
-            <text class="action-btn action-view" @click.stop="goView(item)">查看</text>
-          </view>
-          <!-- 待复核：复核、查看 -->
-          <view class="order-actions" v-else-if="Number(item.checkOrderStatus) === 2">
-            <text class="action-btn action-edit" @click.stop="goEdit(item)">复核</text>
-            <text class="action-btn action-view" @click.stop="goView(item)">查看</text>
-          </view>
-          <!-- 已完成/已作废：仅查看 -->
-          <view class="order-actions" v-else>
-            <text class="action-btn action-view" @click.stop="goView(item)">查看</text>
-          </view>
+        <view class="swipe-action-delete" v-if="canDelete(item)" @click="handleDelete(item)">
+          <text>删除</text>
         </view>
       </view>
 
@@ -95,9 +70,11 @@ import { listCheckOrder, delCheckOrder } from '@/api/wms/checkOrder'
 import { useWmsStore } from '@/store/wms'
 import { useUserStore } from '@/store/user'
 import { formatTime } from '@/utils/scan'
+import { useSwipe } from '@/utils/swipe'
 
 const wmsStore = useWmsStore()
 const userStore = useUserStore()
+const { openId, onTouchStart, onTouchMove, onTouchEnd } = useSwipe()
 const list = ref([])
 const loading = ref(false)
 const refreshing = ref(false)
@@ -126,6 +103,25 @@ const getScopeLabel = (item) => {
   else if (item.checkScopeType === 'area') name = wmsStore.areaMap.get(item.areaId)?.areaName || ''
   else if (item.checkScopeType === 'rack') name = wmsStore.rackMap.get(item.rackId)?.rackName || ''
   return type + (name ? ' - ' + name : '')
+}
+
+const getScopeName = (item) => {
+  if (item.checkScopeType === 'warehouse') return wmsStore.warehouseMap.get(item.warehouseId)?.warehouseName || '全仓'
+  if (item.checkScopeType === 'area') return wmsStore.areaMap.get(item.areaId)?.areaName || '-'
+  if (item.checkScopeType === 'rack') return wmsStore.rackMap.get(item.rackId)?.rackName || '-'
+  return wmsStore.getDictLabel('wms_check_scope_type', item.checkScopeType) || '-'
+}
+
+// 左滑删除条件：草稿/已驳回
+const canDelete = (row) => [0, -2].includes(Number(row.checkOrderStatus))
+
+// 可操作状态(提交/去盘点/复核)点击进编辑，其余进查看
+const goSmart = (row) => {
+  if (openId.value === row.id) {
+    openId.value = null
+    return
+  }
+  [0, 1, 2, -2].includes(Number(row.checkOrderStatus)) ? goEdit(row) : goView(row)
 }
 
 const getList = async (reset = false) => {
@@ -193,19 +189,77 @@ onShow(() => {
 .tab-active .tab-text { color: #ffffff; }
 .tab-text { font-size: 26rpx; color: #666666; }
 .order-list { flex: 1; padding: 16rpx; }
-.order-card { padding: 24rpx; margin-bottom: 16rpx; }
-.order-header { margin-bottom: 16rpx; padding-bottom: 12rpx; border-bottom: 1rpx solid #f0f0f0; }
-.order-no { font-size: 30rpx; font-weight: 600; color: #333333; }
-.order-body { margin-bottom: 12rpx; }
-.order-row { display: flex; justify-content: space-between; padding: 6rpx 0; }
-.order-label { color: #999999; font-size: 24rpx; }
-.order-value { color: #333333; font-size: 24rpx; text-align: right; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.order-footer { padding-top: 12rpx; border-top: 1rpx solid #f0f0f0; }
-.order-actions { display: flex; gap: 20rpx; }
-.action-btn { font-size: 26rpx; padding: 4rpx 16rpx; }
-.action-edit { color: #2979ff; }
-.action-delete { color: #e43d33; }
-.action-view { color: #2979ff; }
+.swipe-wrapper {
+  position: relative;
+  margin-bottom: 16rpx;
+  overflow: hidden;
+  border-radius: 16rpx;
+}
+
+.swipe-content {
+  position: relative;
+  z-index: 1;
+  padding: 20rpx 24rpx;
+  background: #ffffff;
+  border-radius: 16rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+  transition: transform 0.2s ease;
+}
+
+.swipe-open {
+  transform: translateX(-140rpx);
+}
+
+.order-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.order-no {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333333;
+  flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.order-tags {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-top: 12rpx;
+  overflow: hidden;
+}
+
+.tag-plain {
+  background: #f0f2f5;
+  color: #666666;
+}
+
+.area-tag {
+  max-width: 200rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.swipe-action-delete {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 140rpx;
+  background: #e43d33;
+  color: #ffffff;
+  font-size: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 .empty-tip { text-align: center; padding: 120rpx 0; }
 .loading-tip { text-align: center; padding: 24rpx 0; }
 .fab-btn { position: fixed; right: 40rpx; bottom: 80rpx; width: 112rpx; height: 112rpx; background: linear-gradient(135deg, #2979ff, #5c9aff); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 8rpx 24rpx rgba(41, 121, 255, 0.4); z-index: 100; }

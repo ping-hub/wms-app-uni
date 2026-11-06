@@ -25,46 +25,26 @@
         <text class="text-secondary">暂无出库单</text>
       </view>
 
-      <view
-        v-for="item in list"
-        :key="item.id"
-        class="order-card card"
-        @click="goView(item)"
-      >
-        <view class="order-header flex-between">
-          <text class="order-no">{{ item.shipmentOrderNo || '待生成' }}</text>
-          <text :class="['tag', getStatusTagClass(item.shipmentOrderStatus)]">
-            {{ getStatusLabel(item.shipmentOrderStatus) }}
-          </text>
-        </view>
-        <view class="order-body">
-          <view class="order-row">
-            <text class="order-label">出库类型</text>
-            <text class="order-value">{{ getShipmentTypeLabel(item.shipmentOrderType) }}</text>
+      <view v-for="item in list" :key="item.id" class="swipe-wrapper">
+        <view
+          class="swipe-content"
+          :class="{ 'swipe-open': openId === item.id }"
+          @touchstart="onTouchStart"
+          @touchmove="onTouchMove($event, item)"
+          @touchend="onTouchEnd(item)"
+          @click="goSmart(item)"
+        >
+          <view class="order-header">
+            <text class="order-no">{{ item.shipmentOrderNo || '待生成' }}</text>
+            <text :class="['tag', getStatusTagClass(item.shipmentOrderStatus)]">{{ getStatusLabel(item.shipmentOrderStatus) }}</text>
           </view>
-          <view class="order-row">
-            <text class="order-label">数量</text>
-            <text class="order-value">{{ Math.floor(item.totalQuantity || 0) }}件</text>
+          <view class="order-tags">
+            <text class="tag tag-plain">{{ getShipmentTypeLabel(item.shipmentOrderType) }}</text>
+            <text class="tag tag-plain">{{ Math.floor(item.totalQuantity || 0) }}件</text>
           </view>
         </view>
-        <view class="order-footer flex-between">
-          <text class="text-secondary">{{ item.createBy }} · {{ formatTime(item.createTime) }}</text>
-          <view class="order-actions" v-if="(item.shipmentOrderStatus === 0 || item.shipmentOrderStatus === -2) && isApplicant(item)">
-            <text class="action-btn action-edit" @click.stop="goEdit(item)">编辑</text>
-            <text class="action-btn action-delete" @click.stop="handleDelete(item)">删除</text>
-            <text class="action-btn action-view" @click.stop="goView(item)">查看</text>
-          </view>
-          <view class="order-actions" v-else-if="item.shipmentOrderStatus === 1 && isApprover(item)">
-            <text class="action-btn action-submit" @click.stop="goEdit(item)">审批</text>
-            <text class="action-btn action-view" @click.stop="goView(item)">查看</text>
-          </view>
-          <view class="order-actions" v-else-if="item.shipmentOrderStatus === 2 && isExecutor(item)">
-            <text class="action-btn action-ship" @click.stop="goEdit(item)">完成出库</text>
-            <text class="action-btn action-view" @click.stop="goView(item)">查看</text>
-          </view>
-          <view class="order-actions" v-else>
-            <text class="action-btn action-view" @click.stop="goView(item)">查看</text>
-          </view>
+        <view class="swipe-action-delete" v-if="canDelete(item)" @click="handleDelete(item)">
+          <text>删除</text>
         </view>
       </view>
 
@@ -121,9 +101,11 @@ import { listShipmentOrder, delShipmentOrder } from '@/api/wms/shipmentOrder'
 import { useWmsStore } from '@/store/wms'
 import { useUserStore } from '@/store/user'
 import { formatTime } from '@/utils/scan'
+import { useSwipe } from '@/utils/swipe'
 
 const wmsStore = useWmsStore()
 const userStore = useUserStore()
+const { openId, onTouchStart, onTouchMove, onTouchEnd } = useSwipe()
 
 const list = ref([])
 const loading = ref(false)
@@ -251,6 +233,22 @@ const isExecutor = (row) => String(row.executorId) === String(userStore.userId)
 
 const goView = (row) => uni.navigateTo({ url: '/pages/shipment/edit?id=' + row.id + '&mode=view' })
 
+// 左滑删除条件：草稿/驳回 且 本人申请
+const canDelete = (row) => (row.shipmentOrderStatus === 0 || row.shipmentOrderStatus === -2) && isApplicant(row)
+
+// 当前用户可直接操作的单据(编辑/审批/完成出库)
+const canOperate = (row) => canDelete(row)
+  || (row.shipmentOrderStatus === 1 && isApprover(row))
+  || (row.shipmentOrderStatus === 2 && isExecutor(row))
+
+const goSmart = (row) => {
+  if (openId.value === row.id) {
+    openId.value = null
+    return
+  }
+  canOperate(row) ? goEdit(row) : goView(row)
+}
+
 // ===== 审批操作 =====
 
 
@@ -344,70 +342,77 @@ onShow(() => {
   padding: 16rpx;
 }
 
-.order-card {
-  padding: 24rpx;
+.swipe-wrapper {
+  position: relative;
   margin-bottom: 16rpx;
+  overflow: hidden;
+  border-radius: 16rpx;
+}
+
+.swipe-content {
+  position: relative;
+  z-index: 1;
+  padding: 20rpx 24rpx;
+  background: #ffffff;
+  border-radius: 16rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+  transition: transform 0.2s ease;
+}
+
+.swipe-open {
+  transform: translateX(-140rpx);
 }
 
 .order-header {
-  margin-bottom: 16rpx;
-  padding-bottom: 12rpx;
-  border-bottom: 1rpx solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
 }
 
 .order-no {
   font-size: 30rpx;
   font-weight: 600;
   color: #333333;
-}
-
-.order-body {
-  margin-bottom: 12rpx;
-}
-
-.order-row {
-  display: flex;
-  justify-content: space-between;
-  padding: 6rpx 0;
-}
-
-.order-label {
-  color: #999999;
-  font-size: 24rpx;
-}
-
-.order-value {
-  color: #333333;
-  font-size: 24rpx;
-  text-align: right;
-  max-width: 60%;
+  flex-shrink: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.order-footer {
-  padding-top: 12rpx;
-  border-top: 1rpx solid #f0f0f0;
-}
-
-.order-actions {
+.order-tags {
   display: flex;
-  gap: 20rpx;
+  align-items: center;
+  gap: 12rpx;
+  margin-top: 12rpx;
+  overflow: hidden;
 }
 
-.action-btn {
-  font-size: 26rpx;
-  padding: 4rpx 16rpx;
+.tag-plain {
+  background: #f0f2f5;
+  color: #666666;
 }
 
-.action-edit { color: #2979ff; }
-.action-submit { color: #e6a23c; }
-.action-delete { color: #e43d33; }
-.action-approve { color: #67c23a; }
-.action-reject { color: #f56c6c; }
-.action-ship { color: #2979ff; font-weight: 600; }
-.action-view { color: #2979ff; }
+.area-tag {
+  max-width: 200rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.swipe-action-delete {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 140rpx;
+  background: #e43d33;
+  color: #ffffff;
+  font-size: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
 .empty-tip {
   text-align: center;

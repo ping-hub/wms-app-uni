@@ -2,15 +2,15 @@
   <view class="login-page">
     <!-- 右上角设置按钮 -->
     <view class="settings-btn" @click="showSettings = true">
-      <text class="settings-icon">⚙️</text>
+      <image class="settings-icon" src="/static/icons/settings.svg" mode="aspectFit" />
     </view>
 
     <view class="login-header">
       <view class="logo-wrap">
-        <image class="logo-icon" src="/static/logo_80.png" mode="aspectFit" />
+        <image class="logo-icon" src="/static/icons/logo.png" mode="aspectFit" />
       </view>
       <text class="app-title">WMS-App</text>
-      <text class="app-subtitle">仓库管理系统</text>
+      <text class="app-subtitle">器材管理系统</text>
     </view>
 
     <view class="login-form card">
@@ -231,7 +231,8 @@ onMounted(() => {
 }
 
 .settings-icon {
-  font-size: 40rpx;
+  width: 40rpx;
+  height: 40rpx;
 }
 
 .login-header {
@@ -251,8 +252,8 @@ onMounted(() => {
 }
 
 .logo-icon {
-  width: 80rpx;
-  height: 80rpx;
+  width: 112rpx;
+  height: 112rpx;
 }
 
 .app-title {

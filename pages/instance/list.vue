@@ -10,16 +10,13 @@
     <scroll-view class="instance-list" scroll-y refresher-enabled :refresher-triggered="refreshing" @refresherrefresh="onRefresh" @scrolltolower="onLoadMore">
       <view v-if="!list.length && !loading" class="empty-tip"><text class="text-secondary">暂无库存明细</text></view>
       <view v-for="item in list" :key="item.id" class="instance-card card" @click="goDetail(item)">
-        <view class="inst-header flex-between">
+        <view class="inst-header">
           <text class="inst-code">{{ item.instanceCode }}</text>
           <text :class="['tag', getStatusTagClass(item.instanceStatus)]">{{ item.instanceStatus }}</text>
         </view>
-        <view class="inst-body">
-          <view class="inst-row"><text class="inst-label">器材</text><text class="inst-value">{{ item.itemName || '-' }}</text></view>
-          <view class="inst-row" v-if="item.itemCode"><text class="inst-label">器材编码</text><text class="inst-value">{{ item.itemCode }}</text></view>
-          <view class="inst-row" v-if="item.skuName"><text class="inst-label">规格型号</text><text class="inst-value">{{ item.skuName }}</text></view>
-          <view class="inst-row"><text class="inst-label">仓库</text><text class="inst-value">{{ item.warehouseName || getWarehouseName(item.warehouseId) }}</text></view>
-          <view class="inst-row"><text class="inst-label">库区</text><text class="inst-value">{{ item.areaName || getAreaName(item.areaId) }}</text></view>
+        <view class="inst-tags">
+          <text class="tag tag-plain inst-name">{{ item.itemName || '-' }}</text>
+          <text class="tag tag-plain">{{ item.warehouseName || getWarehouseName(item.warehouseId) }} / {{ item.areaName || getAreaName(item.areaId) }}</text>
         </view>
       </view>
       <view v-if="loading" class="loading-tip"><text class="text-secondary">加载中...</text></view>
@@ -172,12 +169,12 @@ onMounted(() => {
 .search-input { flex: 1; height: 72rpx; background: #f5f6fa; border-radius: 36rpx; padding: 0 28rpx; font-size: 28rpx; }
 .filter-btn { padding: 12rpx 28rpx; background: #e8f0fe; border-radius: 32rpx; color: #2979ff; font-size: 26rpx; }
 .instance-list { flex: 1; padding: 16rpx; }
-.instance-card { padding: 24rpx; margin-bottom: 16rpx; }
-.inst-header { margin-bottom: 12rpx; padding-bottom: 12rpx; border-bottom: 1rpx solid #f0f0f0; }
-.inst-code { font-size: 28rpx; font-weight: 600; color: #2979ff; }
-.inst-row { display: flex; justify-content: space-between; padding: 4rpx 0; }
-.inst-label { color: #999999; font-size: 24rpx; }
-.inst-value { color: #333333; font-size: 24rpx; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.instance-card { padding: 20rpx 24rpx; margin-bottom: 16rpx; }
+.inst-header { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; }
+.inst-code { font-size: 30rpx; font-weight: 600; color: #2979ff; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inst-tags { display: flex; align-items: center; gap: 12rpx; margin-top: 12rpx; overflow: hidden; }
+.tag-plain { background: #f0f2f5; color: #666666; }
+.inst-name { max-width: 320rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .empty-tip { text-align: center; padding: 120rpx 0; }
 .loading-tip { text-align: center; padding: 24rpx 0; }
 .filter-mask { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 200; display: flex; justify-content: flex-end; }

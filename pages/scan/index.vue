@@ -4,7 +4,7 @@
       <!-- 扫码入口 -->
       <view class="card scan-entry" @tap="handleScan">
         <view class="scan-icon-wrap">
-          <text class="scan-icon-text">📷</text>
+          <image class="scan-icon-text" src="/static/icons/camera.svg" mode="aspectFit" />
         </view>
         <view class="scan-entry-info">
           <text class="scan-entry-title">扫码查找器材</text>
@@ -57,7 +57,7 @@
 
       <!-- 未找到 -->
       <view v-if="searched && !result" class="card empty-card">
-        <text class="empty-icon">🔍</text>
+        <image class="empty-icon" src="/static/icons/empty-search.svg" mode="aspectFit" />
         <text class="empty-text">未找到编码为「{{ lastCode }}」的器材实例</text>
       </view>
     </scroll-view>
@@ -163,7 +163,7 @@ const searchByCode = async (code) => {
 /* 扫码入口 */
 .scan-entry { display: flex; align-items: center; padding: 32rpx 24rpx; margin-bottom: 16rpx; }
 .scan-icon-wrap { width: 80rpx; height: 80rpx; background: #e8f0fe; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.scan-icon-text { font-size: 40rpx; }
+.scan-icon-text { width: 40rpx; height: 40rpx; }
 .scan-entry-info { flex: 1; margin-left: 24rpx; display: flex; flex-direction: column; }
 .scan-entry-title { font-size: 30rpx; font-weight: 600; color: #333; }
 .scan-entry-desc { font-size: 24rpx; color: #999; margin-top: 4rpx; }
@@ -187,6 +187,6 @@ const searchByCode = async (code) => {
 
 /* 未找到 */
 .empty-card { text-align: center; padding: 48rpx 24rpx; }
-.empty-icon { font-size: 60rpx; display: block; margin-bottom: 16rpx; }
+.empty-icon { width: 60rpx; height: 60rpx; display: block; margin-bottom: 16rpx; }
 .empty-text { font-size: 26rpx; color: #999; display: block; }
 </style>

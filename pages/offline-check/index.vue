@@ -2,7 +2,7 @@
   <view class="offline-check-page">
     <!-- 顶部说明 -->
     <view class="tip-bar card">
-      <text class="tip-icon">📡</text>
+      <image class="tip-icon" src="/static/icons/offline.svg" mode="aspectFit" />
       <text class="tip-text">下载盘点数据到本地，无网环境下扫码盘点，联网后上传结果</text>
     </view>
 
@@ -30,7 +30,7 @@
       @refresherrefresh="onServerRefresh"
     >
       <view v-if="!serverList.length && !serverLoading" class="empty-tip">
-        <text class="empty-icon">📭</text>
+        <image class="empty-icon" src="/static/icons/empty-mail.svg" mode="aspectFit" />
         <text class="empty-text">暂无可下载的盘点单</text>
         <text class="empty-sub">请先在 Web 端创建并启动盘点单</text>
       </view>
@@ -77,7 +77,7 @@
     <!-- 已下载列表（本地离线任务） -->
     <scroll-view v-if="currentTab === 'local'" class="task-list" scroll-y>
       <view v-if="!localTasks.length" class="empty-tip">
-        <text class="empty-icon">📥</text>
+        <image class="empty-icon" src="/static/icons/empty-box.svg" mode="aspectFit" />
         <text class="empty-text">暂无已下载的盘点任务</text>
         <text class="empty-sub">请先在"可下载"列表中下载盘点数据</text>
       </view>
@@ -348,7 +348,7 @@ onShow(() => {
   background: #e8f0fe;
   border-radius: 16rpx;
 }
-.tip-icon { font-size: 32rpx; flex-shrink: 0; }
+.tip-icon { width: 32rpx; height: 32rpx; flex-shrink: 0; }
 .tip-text { font-size: 24rpx; color: #2979ff; line-height: 1.6; }
 
 .tabs {
@@ -495,7 +495,7 @@ onShow(() => {
   align-items: center;
   gap: 8rpx;
 }
-.empty-icon { font-size: 80rpx; }
+.empty-icon { width: 80rpx; height: 80rpx; }
 .empty-text { font-size: 28rpx; color: #666666; }
 .empty-sub { font-size: 24rpx; color: #999999; }
 
